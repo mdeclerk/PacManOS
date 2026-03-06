@@ -1,0 +1,15 @@
+cpu: model=p2_klamath, count=1, ips=50000000, reset_on_triple_fault=0
+memory: guest=512, host=512
+
+boot: cdrom
+ata0-master: type=cdrom, path="out/release/pacmanos.iso", status=inserted
+
+display_library: sdl2
+vga: extension=vbe, update_freq=60
+
+com1: enabled=1, mode=file, dev=out/release/bochs-serial.log
+
+keyboard: type=mf, serial_delay=250, paste_delay=100000
+mouse: enabled=0
+
+clock: sync=realtime, time0=local

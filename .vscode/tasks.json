@@ -1,0 +1,89 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "init",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["init"],
+      "problemMatcher": []
+    },
+    {
+      "label": "bash",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["bash"],
+      "problemMatcher": []
+    },
+    {
+      "label": "make:debug",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["make-dbg"],
+      "problemMatcher": []
+    },
+    {
+      "label": "make:release",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["make-rel"],
+      "problemMatcher": []
+    },
+    {
+      "label": "clean",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["clean"],
+      "problemMatcher": []
+    },
+    {
+      "label": "editor",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["editor"],
+      "problemMatcher": []
+    },
+    {
+      "label": "bochs:debug",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["bochs-dbg"],
+      "problemMatcher": []
+    },
+    {
+      "label": "bochs:release",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["bochs-rel"],
+      "problemMatcher": []
+    },
+    {
+      "label": "qemu:debug",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["qemu-dbg"],
+      "problemMatcher": []
+    },
+    {
+      "label": "qemu:release",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["qemu-rel"],
+      "problemMatcher": []
+    },
+    {
+      "label": "qemu-gdb",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["qemu-gdb"],
+      "problemMatcher": []
+    },
+    {
+      "label": "smoke",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["smoke"],
+      "problemMatcher": []
+    }
+  ]
+}
