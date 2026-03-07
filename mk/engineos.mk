@@ -15,11 +15,7 @@ ENGINEOS_LINKER := $(ENGINEOS_SRC_DIR)/linker.ld
 
 # --- Compile ----------------------------------------------------------------
 
-$(ENGINEOS_OBJ_DIR)/%.c.o: $(ENGINEOS_SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(ENGINEOS_OBJ_DIR)/%.S.o: $(ENGINEOS_SRC_DIR)/%.S
+$(ENGINEOS_OBJ_DIR)/%.o: $(ENGINEOS_SRC_DIR)/%
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 

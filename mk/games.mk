@@ -23,11 +23,7 @@ $$($(1)_RAMFS): $(ASSETS_PACKER) $$($(1)_ASSET_FILES)
 
 # --- Object files -----------------------------------------------------------
 
-$$($(1)_OBJ_DIR)/%.c.o: $$($(1)_SRC_DIR)/%.c
-	@mkdir -p $$(dir $$@)
-	$(CC) $(CFLAGS) -c $$< -o $$@
-
-$$($(1)_OBJ_DIR)/%.S.o: $$($(1)_SRC_DIR)/%.S
+$$($(1)_OBJ_DIR)/%.o: $$($(1)_SRC_DIR)/%
 	@mkdir -p $$(dir $$@)
 	$(CC) $(CFLAGS) -c $$< -o $$@
 

@@ -14,11 +14,7 @@ STDLIB_LIB := $(STDLIB_BUILD_DIR)/libstd.a
 
 # --- Compile ----------------------------------------------------------------
 
-$(STDLIB_OBJ_DIR)/%.c.o: $(STDLIB_SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(STDLIB_OBJ_DIR)/%.S.o: $(STDLIB_SRC_DIR)/%.S
+$(STDLIB_OBJ_DIR)/%.o: $(STDLIB_SRC_DIR)/%
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
