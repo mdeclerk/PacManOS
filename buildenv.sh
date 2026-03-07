@@ -25,6 +25,8 @@ Commands:
   
   bochs-dbg  Build debug ISO and run with Bochs.
   bochs-rel  Build release ISO and run with Bochs.
+
+  smoke      Smoke-test all build/game combinations on host QEMU.
 EOF2
 }
 
@@ -40,5 +42,6 @@ case "${1:-help}" in
   qemu-gdb)   "$0" make-dbg && qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" -serial stdio -no-reboot -s -S ;;
   bochs-dbg)  "$0" make-dbg && bochs -f bochsrc/bochsrc-dbg -q ;;
   bochs-rel)  "$0" make-rel && bochs -f bochsrc/bochsrc-rel -q ;;
+  smoke)      exec "$PWD/scripts/smoke_matrix.sh" "${@:2}" ;;
   *)          usage ;;
 esac

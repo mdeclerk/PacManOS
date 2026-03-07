@@ -95,6 +95,8 @@ commands:
   
   bochs-dbg   Build debug ISO and run in Bochs
   bochs-rel   Build release ISO and run in Bochs
+
+  smoke       Smoke-test all build/game combinations
 ```
 
 ### Build Artifacts in `out/`
@@ -110,4 +112,18 @@ Components
 
 Final Assembly
   [engineos.elf] + [<game>.elf] + [<game>.ramfs] -> [pacmanos.iso]
+```
+
+### Smoke Testing
+
+`./buildenv.sh smoke` runs a host-side QEMU smoke test matrix across both build
+types (`debug`, `release`) and every game returned by `make print-games`. Each
+matrix entry rebuilds a single-game ISO with `GAMES=<game>` into its own
+`out/smoke/<game>/<build>/` directory and passes only if serial output reaches
+`game_run:` within the default `3s`
+timeout.
+
+```bash
+./buildenv.sh smoke    # Use default 3s timeout
+./buildenv.sh smoke 5  # Override timeout for all matrix entries
 ```
