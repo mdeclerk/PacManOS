@@ -13,7 +13,18 @@
 
 typedef struct screen *(*game_entry_fn)(void);
 
-static void game_init(void) 
+#ifndef NDEBUG
+__attribute__((noinline, used))
+static void gdb_game_loaded(uintptr_t load_start, uintptr_t load_end, uint32_t raw_elf_size)
+{
+    (void)load_start;
+    (void)load_end;
+    (void)raw_elf_size;
+    asm volatile ("" ::: "memory");
+}
+#endif
+
+static void game_init(void)
 {
     const struct mb2_module_entry *mod = mb2_find_module_by_magic("\x7F" "ELF", 4);
     if (!mod)
@@ -25,21 +36,28 @@ static void game_init(void)
     if (elf->load_start == 0u || elf->load_end <= elf->load_start)
         PANIC("failed to load game module");
 
+    uintptr_t load_start = elf->load_start;
+    uintptr_t load_end   = elf->load_end;
+
     game_entry_fn game_entry = (game_entry_fn)elf_symbol(elf, "game_entry");
     if (!game_entry)
         PANIC("missing or invalid game_entry");
 
     elf_free(elf);
 
+    log("%s: image %p-%p (%u KiB)", __func__,
+        (void *)load_start, (void *)load_end,
+        (uint32_t)((load_end - load_start) / 1024u));
+
+#ifndef NDEBUG
+    gdb_game_loaded(load_start, load_end, (uint32_t)(mod->end - mod->start));
+#endif
+
     struct screen *root = game_entry();
     if (!root)
         PANIC("no root screen");
 
     screen_init(root);
-
-    log("%s: image %p-%p (%u KiB)", __func__,
-        (void *)elf->load_start, (void *)elf->load_end,
-        (uint32_t)((elf->load_end - elf->load_start) / 1024u));
 }
 
 static inline void game_on_event(const struct event *e)

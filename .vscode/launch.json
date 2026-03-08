@@ -5,13 +5,13 @@
       "name": "PacManOS (QEMU GDB)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/out/debug/iso/boot/gameos.elf",
+      "program": "${workspaceFolder}/out/debug/engineos/engineos.elf",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "miDebuggerServerAddress": "localhost:1234",
       "targetArchitecture": "x86",
-      "stopAtEntry": true,
+      "stopAtEntry": false,
       "externalConsole": false,
       "preLaunchTask": "qemu-gdb",
       "setupCommands": [
@@ -19,6 +19,16 @@
           "description": "Enable Intel disassembly syntax",
           "text": "-gdb-set disassembly-flavor intel",
           "ignoreFailures": true
+        },
+        {
+          "description": "Accept breakpoints before game symbols are loaded",
+          "text": "-gdb-set breakpoint pending on",
+          "ignoreFailures": false
+        },
+        {
+          "description": "Load game module symbol helper",
+          "text": "-interpreter-exec console \"source ${workspaceFolder}/scripts/gdb_load_game_syms.py\"",
+          "ignoreFailures": false
         }
       ]
     }
