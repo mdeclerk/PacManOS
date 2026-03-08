@@ -39,7 +39,7 @@ case "${1:-help}" in
   editor)     exec python3 -m src.editor ;;
   qemu-dbg)   "$0" make-dbg && qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" -serial stdio -no-reboot ;;
   qemu-rel)   "$0" make-rel && qemu-system-i386 -cdrom "$ISO_REL" -cpu qemu32 -m "$QEMU_MEM" -serial stdio -no-reboot ;;
-  qemu-gdb)   "$0" make-dbg && qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" -serial stdio -no-reboot -s -S ;;
+  qemu-gdb)   "$0" make-dbg && echo ">>> QEMU GDB listening on :1234" && qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" -serial stdio -no-reboot -s -S ;;
   bochs-dbg)  "$0" make-dbg && bochs -f bochsrc/bochsrc-dbg -q ;;
   bochs-rel)  "$0" make-rel && bochs -f bochsrc/bochsrc-rel -q ;;
   smoke)      exec "$PWD/scripts/smoke_matrix.sh" "${@:2}" ;;
