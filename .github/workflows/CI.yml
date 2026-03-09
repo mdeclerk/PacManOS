@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force-buildenv:
+        description: Force rebuild of the Docker build environment image
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,7 +48,7 @@ jobs:
       - name: Detect build environment rebuild need
         id: detect-build
         run: |
-          echo "build-needed=${{ steps.dockerfile-check.outputs.dockerfile-changed == 'true' || steps.image-check.outputs.image-exists == 'false' }}" >> "$GITHUB_OUTPUT"
+          echo "build-needed=${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs.dockerfile-changed == 'true' || steps.image-check.outputs.image-exists == 'false' }}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         if: ${{ steps.detect-build.outputs.build-needed == 'true' }}
