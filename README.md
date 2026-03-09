@@ -81,22 +81,24 @@ PacManOS separates the shared `engineos` layer from individual game modules. `en
 usage: ./buildenv.sh <command>
 
 commands:
-  init        Build Docker cross-compiler image (one-time)
-  bash        Open an interactive shell in the build container
-  editor      Launch the level editor
-
-  make-dbg    Build debug ISO
-  make-rel    Build release ISO
-  clean       Remove build output
-
-  qemu-dbg    Build debug ISO and run in QEMU
-  qemu-rel    Build release ISO and run in QEMU
-  qemu-gdb    Build debug ISO and run QEMU with GDB stub
+  init          Build Docker cross-compiler image (one-time)
+  bash          Open an interactive shell in the build container
   
-  bochs-dbg   Build debug ISO and run in Bochs
-  bochs-rel   Build release ISO and run in Bochs
+  editor        Launch the level editor
 
-  smoke       Smoke-test all build/game combinations
+  make-dbg      Build debug ISO
+  make-rel      Build release ISO
+  clean         Remove build output
+
+  qemu-dbg      Build debug ISO and run in QEMU
+  qemu-rel      Build release ISO and run in QEMU
+  qemu-gdb      Build debug ISO and run QEMU / GDB session
+  qemu-gdb-stub Build debug ISO and run QEMU with GDB stub
+  
+  bochs-dbg     Build debug ISO and run in Bochs
+  bochs-rel     Build release ISO and run in Bochs
+
+  smoke         Smoke-test all build/game combinations
 ```
 
 ### Build Artifacts in `out/`

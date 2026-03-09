@@ -72,10 +72,17 @@
       "problemMatcher": []
     },
     {
-      "label": "qemu-gdb",
+      "label": "qemu:gdb",
       "type": "shell",
       "command": "./buildenv.sh",
       "args": ["qemu-gdb"],
+      "problemMatcher": []
+    },
+    {
+      "label": "qemu:gdb-stub",
+      "type": "shell",
+      "command": "./buildenv.sh",
+      "args": ["qemu-gdb-stub"],
       "isBackground": true,
       "problemMatcher": {
         "pattern": {

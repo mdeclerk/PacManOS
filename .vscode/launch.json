@@ -13,7 +13,7 @@
       "targetArchitecture": "x86",
       "stopAtEntry": false,
       "externalConsole": false,
-      "preLaunchTask": "qemu-gdb",
+      "preLaunchTask": "qemu:gdb-stub",
       "setupCommands": [
         {
           "description": "Enable Intel disassembly syntax",
