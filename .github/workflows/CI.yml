@@ -19,7 +19,7 @@ env:
   BUILDENV_IMAGE: ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv
 
 jobs:
-  prepare-buildenv:
+  need-build-buildenv:
     runs-on: ubuntu-24.04
     outputs:
       build_needed: ${{ steps.detect-build.outputs.build_needed }}
@@ -48,27 +48,23 @@ jobs:
       - name: Check published build environment images
         id: image-check
         run: |
-          check_image() {
-            local tag="$1"
-            local output="$2"
-
-            docker manifest inspect "${BUILDENV_IMAGE}:${tag}" >/dev/null 2>&1 \
-              && echo "${output}=true" >> "$GITHUB_OUTPUT" \
-              || echo "${output}=false" >> "$GITHUB_OUTPUT"
-          }
-
-          check_image amd64 amd64_exists
-          check_image arm64 arm64_exists
-          check_image latest latest_exists
+          if docker manifest inspect "${BUILDENV_IMAGE}:latest" >/dev/null 2>&1 \
+            && docker manifest inspect "${BUILDENV_IMAGE}:amd64" >/dev/null 2>&1 \
+            && docker manifest inspect "${BUILDENV_IMAGE}:arm64" >/dev/null 2>&1; then
+            echo "all_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "all_exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Detect build environment rebuild need
         id: detect-build
         run: |
-          echo "build_needed=${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs['dockerfile-changed'] == 'true' || steps.image-check.outputs.amd64_exists == 'false' || steps.image-check.outputs.arm64_exists == 'false' || steps.image-check.outputs.latest_exists == 'false' }}" >> "$GITHUB_OUTPUT"
+          build_needed="${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs['dockerfile-changed'] == 'true' || steps.image-check.outputs.all_exists == 'false' }}"
+          echo "build_needed=${build_needed}" >> "$GITHUB_OUTPUT"
 
   build-buildenv:
-    needs: prepare-buildenv
-    if: ${{ needs.prepare-buildenv.outputs.build_needed == 'true' }}
+    needs: need-build-buildenv
+    if: ${{ needs.need-build-buildenv.outputs.build_needed == 'true' }}
     strategy:
       matrix:
         include:
@@ -99,18 +95,18 @@ jobs:
           cache-from: type=gha,scope=buildenv-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=buildenv-${{ matrix.arch }}
 
-  publish-buildenv-manifest:
-    needs:
-      - prepare-buildenv
+  assemble-buildenv:
+    needs: 
+      - need-build-buildenv
       - build-buildenv
-    if: ${{ needs.prepare-buildenv.outputs.build_needed == 'true' }}
+    if: ${{ needs.need-build-buildenv.outputs.build_needed == 'true' }}
     runs-on: ubuntu-24.04
 
     steps:
       - *ghcr-login
       - *setup-buildx
 
-      - name: Publish multi-arch build environment manifest
+      - name: Publish latest multi-arch build environment manifest
         run: |
           docker buildx imagetools create \
             -t "${BUILDENV_IMAGE}:latest" \
@@ -119,9 +115,9 @@ jobs:
 
   build-pacmanos:
     needs:
-      - prepare-buildenv
-      - publish-buildenv-manifest
-    if: ${{ needs.prepare-buildenv.result == 'success' && (needs.prepare-buildenv.outputs.build_needed != 'true' || needs.publish-buildenv-manifest.result == 'success') }}
+      - need-build-buildenv
+      - assemble-buildenv
+    if: ${{ needs.need-build-buildenv.result == 'success' && (needs.need-build-buildenv.outputs.build_needed != 'true' || needs.assemble-buildenv.result == 'success') }}
     runs-on: ubuntu-24.04
 
     steps:
@@ -137,7 +133,7 @@ jobs:
       - name: Upload debug ISO
         uses: actions/upload-artifact@v4
         with:
-          name: pacmanos-dbg.iso
+          name: pacmanos-dbg-iso
           path: out/debug/pacmanos.iso
           if-no-files-found: error
 
@@ -147,7 +143,7 @@ jobs:
       - name: Upload release ISO
         uses: actions/upload-artifact@v4
         with:
-          name: pacmanos-rel.iso
+          name: pacmanos-rel-iso
           path: out/release/pacmanos.iso
           if-no-files-found: error
 
