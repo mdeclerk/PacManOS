@@ -13,24 +13,24 @@ usage() {
 Usage: $0 <command>
 
 Commands:
-  init          Build the Docker build environment
-  bash          Open an interactive shell inside the build environment container.
+  init          Initialize build environment
+  bash          Open a bash in the build container
+  
+  editor        Launch the level editor
 
-  editor        Run Pacman level editor.
+  make-dbg      Build debug ISO
+  make-rel      Build release ISO
+  clean         Remove build output
 
-  make-dbg      Build debug ISO (BUILD=debug).
-  make-rel      Build release ISO (BUILD=release).
-  clean         Remove build outputs via make clean.
+  qemu-dbg      Run debug ISO in QEMU
+  qemu-rel      Run release ISO in QEMU
+  qemu-gdb      Run debug ISO in QEMU / GDB session
+  qemu-gdb-stub Run debug ISO in QEMU with GDB stub
+  
+  bochs-dbg     Run debug ISO in Bochs
+  bochs-rel     Run release ISO in Bochs
 
-  qemu-dbg      Build debug ISO and run with QEMU.
-  qemu-gdb      Build debug ISO and run QEMU / GDB session.
-  qemu-gdb-stub Build debug ISO and run QEMU paused with GDB stub (-s -S).
-  qemu-rel      Build release ISO and run with QEMU.
-
-  bochs-dbg     Build debug ISO and run with Bochs.
-  bochs-rel     Build release ISO and run with Bochs.
-
-  smoke         Smoke-test all build/game combinations on host QEMU.
+  smoke         Smoke-test all build/game combinations
 USAGE
 }
 
