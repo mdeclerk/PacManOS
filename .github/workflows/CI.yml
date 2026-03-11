@@ -15,15 +15,22 @@ permissions:
   contents: read
   packages: write
 
+env:
+  BUILDENV_IMAGE: ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv
+
 jobs:
-  build-buildenv:
-    runs-on: ubuntu-latest
+  prepare-buildenv:
+    runs-on: ubuntu-24.04
+    outputs:
+      build_needed: ${{ steps.detect-build.outputs.build_needed }}
 
     steps:
-      - name: Checkout
+      - &checkout
+        name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to GHCR
+      - &ghcr-login
+        name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -38,58 +45,94 @@ jobs:
             dockerfile-changed:
               - Dockerfile
 
-      - name: Check build environment image
+      - name: Check published build environment images
         id: image-check
         run: |
-          docker manifest inspect ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest >/dev/null 2>&1 \
-            && echo "image-exists=true" >> "$GITHUB_OUTPUT" \
-            || echo "image-exists=false" >> "$GITHUB_OUTPUT"
+          check_image() {
+            local tag="$1"
+            local output="$2"
+
+            docker manifest inspect "${BUILDENV_IMAGE}:${tag}" >/dev/null 2>&1 \
+              && echo "${output}=true" >> "$GITHUB_OUTPUT" \
+              || echo "${output}=false" >> "$GITHUB_OUTPUT"
+          }
+
+          check_image amd64 amd64_exists
+          check_image arm64 arm64_exists
+          check_image latest latest_exists
 
       - name: Detect build environment rebuild need
         id: detect-build
         run: |
-          echo "build-needed=${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs.dockerfile-changed == 'true' || steps.image-check.outputs.image-exists == 'false' }}" >> "$GITHUB_OUTPUT"
+          echo "build_needed=${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs['dockerfile-changed'] == 'true' || steps.image-check.outputs.amd64_exists == 'false' || steps.image-check.outputs.arm64_exists == 'false' || steps.image-check.outputs.latest_exists == 'false' }}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        if: ${{ steps.detect-build.outputs.build-needed == 'true' }}
-        uses: docker/setup-qemu-action@v3
+  build-buildenv:
+    needs: prepare-buildenv
+    if: ${{ needs.prepare-buildenv.outputs.build_needed == 'true' }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runs_on: ubuntu-24.04
+          - platform: linux/arm64
+            arch: arm64
+            runs_on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs_on }}
 
-      - name: Set up Docker Buildx
-        if: ${{ steps.detect-build.outputs.build-needed == 'true' }}
+    steps:
+      - *checkout
+      - *ghcr-login
+
+      - &setup-buildx
+        name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push build environment image
-        if: ${{ steps.detect-build.outputs.build-needed == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
           target: buildenv
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ env.BUILDENV_IMAGE }}:${{ matrix.arch }}
+          cache-from: type=gha,scope=buildenv-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=buildenv-${{ matrix.arch }}
 
-  build-pacmanos:
-    needs: build-buildenv
-    runs-on: ubuntu-latest
+  publish-buildenv-manifest:
+    needs:
+      - prepare-buildenv
+      - build-buildenv
+    if: ${{ needs.prepare-buildenv.outputs.build_needed == 'true' }}
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - *ghcr-login
+      - *setup-buildx
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish multi-arch build environment manifest
+        run: |
+          docker buildx imagetools create \
+            -t "${BUILDENV_IMAGE}:latest" \
+            "${BUILDENV_IMAGE}:amd64" \
+            "${BUILDENV_IMAGE}:arm64"
+
+  build-pacmanos:
+    needs:
+      - prepare-buildenv
+      - publish-buildenv-manifest
+    if: ${{ needs.prepare-buildenv.result == 'success' && (needs.prepare-buildenv.outputs.build_needed != 'true' || needs.publish-buildenv-manifest.result == 'success') }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - *checkout
+      - *ghcr-login
 
       - name: Pull build environment image
-        run: docker pull ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest
+        run: docker pull "${BUILDENV_IMAGE}:latest"
 
       - name: Build debug ISO
-        run: IMAGE=ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest ./buildenv.sh make-dbg
+        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh make-dbg
 
       - name: Upload debug ISO
         uses: actions/upload-artifact@v4
@@ -99,7 +142,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build release ISO
-        run: IMAGE=ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest ./buildenv.sh make-rel
+        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh make-rel
 
       - name: Upload release ISO
         uses: actions/upload-artifact@v4
@@ -110,24 +153,18 @@ jobs:
 
   smoke-pacmanos:
     needs: build-pacmanos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - *checkout
 
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - *ghcr-login
 
       - name: Pull build environment image
-        run: docker pull ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest
+        run: docker pull "${BUILDENV_IMAGE}:latest"
 
       - name: Smoke test build matrix
-        run: IMAGE=ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv:latest ./buildenv.sh smoke 10
+        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh smoke 10
