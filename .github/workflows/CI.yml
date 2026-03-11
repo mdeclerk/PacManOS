@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
     inputs:
       force-buildenv:
@@ -19,72 +18,75 @@ env:
   BUILDENV_IMAGE: ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv
 
 jobs:
-  need-build-buildenv:
-    runs-on: ubuntu-24.04
+  # ---------------------------------------------------------------------------
+  # Stage 1: Build the cross-compiler Docker image (per-arch, native runners)
+  # ---------------------------------------------------------------------------
+  build-buildenv:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     outputs:
-      build_needed: ${{ steps.detect-build.outputs.build_needed }}
+      rebuilt: ${{ steps.check.outputs.rebuilt }}
 
     steps:
-      - &checkout
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      - &ghcr-login
-        name: Log in to GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check Dockerfile changes
-        id: dockerfile-check
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            dockerfile-changed:
-              - Dockerfile
+      - name: Check if force rebuild was requested
+        id: forced
+        run: echo "result=${{ inputs.force-buildenv == true }}" >> "$GITHUB_OUTPUT"
 
-      - name: Check published build environment images
-        id: image-check
+      - name: Check if image exists in registry
+        id: image
         run: |
-          if docker manifest inspect "${BUILDENV_IMAGE}:latest" >/dev/null 2>&1 \
-            && docker manifest inspect "${BUILDENV_IMAGE}:amd64" >/dev/null 2>&1 \
-            && docker manifest inspect "${BUILDENV_IMAGE}:arm64" >/dev/null 2>&1; then
-            echo "all_exists=true" >> "$GITHUB_OUTPUT"
+          if docker manifest inspect "${BUILDENV_IMAGE}:latest" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "all_exists=false" >> "$GITHUB_OUTPUT"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Detect build environment rebuild need
-        id: detect-build
+      - name: Check if Dockerfile changed
+        uses: dorny/paths-filter@v3
+        id: dockerfile
+        with:
+          filters: |
+            changed:
+              - 'Dockerfile'
+
+      - name: Decide whether to rebuild
+        id: check
         run: |
-          build_needed="${{ inputs.force-buildenv == true || steps.dockerfile-check.outputs['dockerfile-changed'] == 'true' || steps.image-check.outputs.all_exists == 'false' }}"
-          echo "build_needed=${build_needed}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ steps.forced.outputs.result }}" == "true" \
+             || "${{ steps.image.outputs.exists }}" == "false" \
+             || "${{ steps.dockerfile.outputs.changed }}" == "true" ]]; then
+            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
+          fi
 
-  build-buildenv:
-    needs: need-build-buildenv
-    if: ${{ needs.need-build-buildenv.outputs.build_needed == 'true' }}
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            arch: amd64
-            runs_on: ubuntu-24.04
-          - platform: linux/arm64
-            arch: arm64
-            runs_on: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runs_on }}
-
-    steps:
-      - *checkout
-      - *ghcr-login
-
-      - &setup-buildx
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.rebuilt == 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push build environment image
+      - name: Build and push ${{ matrix.arch }} image
+        if: steps.check.outputs.rebuilt == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -95,53 +97,46 @@ jobs:
           cache-from: type=gha,scope=buildenv-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=buildenv-${{ matrix.arch }}
 
-  assemble-buildenv:
-    needs: 
-      - need-build-buildenv
-      - build-buildenv
-    if: ${{ needs.need-build-buildenv.outputs.build_needed == 'true' }}
+  publish-buildenv:
+    needs: build-buildenv
     runs-on: ubuntu-24.04
 
     steps:
-      - *ghcr-login
-      - *setup-buildx
+      - name: Log in to GHCR
+        if: needs.build-buildenv.outputs.rebuilt == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish latest multi-arch build environment manifest
+      - name: Publish multi-arch manifest
+        if: needs.build-buildenv.outputs.rebuilt == 'true'
         run: |
           docker buildx imagetools create \
             -t "${BUILDENV_IMAGE}:latest" \
             "${BUILDENV_IMAGE}:amd64" \
             "${BUILDENV_IMAGE}:arm64"
 
-  buildenv-ready:
-    needs:
-      - need-build-buildenv
-      - assemble-buildenv
-    if: ${{ always() }}
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Confirm build environment is ready
-        run: |
-          if [[ "${{ needs.need-build-buildenv.result }}" != "success" ]]; then
-            echo "need-build-buildenv result was ${{ needs.need-build-buildenv.result }}" >&2
-            exit 1
-          fi
-
-          if [[ "${{ needs.assemble-buildenv.result }}" != "success" && "${{ needs.assemble-buildenv.result }}" != "skipped" ]]; then
-            echo "assemble-buildenv result was ${{ needs.assemble-buildenv.result }}" >&2
-            exit 1
-          fi
-
+  # ---------------------------------------------------------------------------
+  # Stage 2: Build PacManOS debug & release ISOs
+  # ---------------------------------------------------------------------------
   build-pacmanos:
-    needs: buildenv-ready
+    needs: publish-buildenv
     runs-on: ubuntu-24.04
 
     steps:
-      - *checkout
-      - *ghcr-login
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Pull build environment image
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull build environment
         run: docker pull "${BUILDENV_IMAGE}:latest"
 
       - name: Build debug ISO
@@ -164,20 +159,29 @@ jobs:
           path: out/release/pacmanos.iso
           if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # Stage 3: Smoke-test booting the ISOs in QEMU
+  # ---------------------------------------------------------------------------
   smoke-pacmanos:
     needs: build-pacmanos
     runs-on: ubuntu-24.04
 
     steps:
-      - *checkout
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
 
-      - *ghcr-login
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull build environment image
+      - name: Pull build environment
         run: docker pull "${BUILDENV_IMAGE}:latest"
 
-      - name: Smoke test build matrix
+      - name: Run smoke tests
         run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh smoke 10
