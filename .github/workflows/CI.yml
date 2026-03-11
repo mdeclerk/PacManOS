@@ -113,11 +113,28 @@ jobs:
             "${BUILDENV_IMAGE}:amd64" \
             "${BUILDENV_IMAGE}:arm64"
 
-  build-pacmanos:
+  buildenv-ready:
     needs:
       - need-build-buildenv
       - assemble-buildenv
-    if: ${{ needs.need-build-buildenv.result == 'success' && (needs.need-build-buildenv.outputs.build_needed != 'true' || needs.assemble-buildenv.result == 'success') }}
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Confirm build environment is ready
+        run: |
+          if [[ "${{ needs.need-build-buildenv.result }}" != "success" ]]; then
+            echo "need-build-buildenv result was ${{ needs.need-build-buildenv.result }}" >&2
+            exit 1
+          fi
+
+          if [[ "${{ needs.assemble-buildenv.result }}" != "success" && "${{ needs.assemble-buildenv.result }}" != "skipped" ]]; then
+            echo "assemble-buildenv result was ${{ needs.assemble-buildenv.result }}" >&2
+            exit 1
+          fi
+
+  build-pacmanos:
+    needs: buildenv-ready
     runs-on: ubuntu-24.04
 
     steps:
