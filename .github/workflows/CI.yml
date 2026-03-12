@@ -1,146 +1,40 @@
+# Builds the cross-compiler toolchain image locally, compiles debug and 
+# release ISOs, and smoke-tests dedicated single-game ISOs in QEMU.
 name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      force-buildenv:
-        description: Force rebuild of the Docker build environment image
-        type: boolean
-        default: false
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  BUILDENV_IMAGE: ghcr.io/${{ github.repository_owner }}/pacmanos-buildenv
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Stage 1: Build the cross-compiler Docker image (per-arch, native runners)
-  # ---------------------------------------------------------------------------
-  build-buildenv:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            platform: linux/amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            platform: linux/arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
-    outputs:
-      rebuilt: ${{ steps.check.outputs.rebuilt }}
+  build-and-smoke:
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if force rebuild was requested
-        id: forced
-        run: echo "result=${{ inputs.force-buildenv == true }}" >> "$GITHUB_OUTPUT"
-
-      - name: Check if image exists in registry
-        id: image
-        run: |
-          if docker manifest inspect "${BUILDENV_IMAGE}:latest" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check if Dockerfile changed
-        uses: dorny/paths-filter@v3
-        id: dockerfile
-        with:
-          filters: |
-            changed:
-              - 'Dockerfile'
-
-      - name: Decide whether to rebuild
-        id: check
-        run: |
-          if [[ "${{ steps.forced.outputs.result }}" == "true" \
-             || "${{ steps.image.outputs.exists }}" == "false" \
-             || "${{ steps.dockerfile.outputs.changed }}" == "true" ]]; then
-            echo "rebuilt=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "rebuilt=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Set up Docker Buildx
-        if: steps.check.outputs.rebuilt == 'true'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push ${{ matrix.arch }} image
-        if: steps.check.outputs.rebuilt == 'true'
+      - name: Build buildenv image
         uses: docker/build-push-action@v6
         with:
           context: .
           target: buildenv
-          platforms: ${{ matrix.platform }}
-          push: true
-          tags: ${{ env.BUILDENV_IMAGE }}:${{ matrix.arch }}
-          cache-from: type=gha,scope=buildenv-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=buildenv-${{ matrix.arch }}
-
-  publish-buildenv:
-    needs: build-buildenv
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Log in to GHCR
-        if: needs.build-buildenv.outputs.rebuilt == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish multi-arch manifest
-        if: needs.build-buildenv.outputs.rebuilt == 'true'
-        run: |
-          docker buildx imagetools create \
-            -t "${BUILDENV_IMAGE}:latest" \
-            "${BUILDENV_IMAGE}:amd64" \
-            "${BUILDENV_IMAGE}:arm64"
-
-  # ---------------------------------------------------------------------------
-  # Stage 2: Build PacManOS debug & release ISOs
-  # ---------------------------------------------------------------------------
-  build-pacmanos:
-    needs: publish-buildenv
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull build environment
-        run: docker pull "${BUILDENV_IMAGE}:latest"
+          load: true
+          tags: pacmanos-buildenv:ci
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,mode=max,scope=ci
 
       - name: Build debug ISO
-        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh make-dbg
+        run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh make-dbg
 
       - name: Upload debug ISO
         uses: actions/upload-artifact@v4
@@ -150,7 +44,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build release ISO
-        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh make-rel
+        run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh make-rel
 
       - name: Upload release ISO
         uses: actions/upload-artifact@v4
@@ -159,29 +53,8 @@ jobs:
           path: out/release/pacmanos.iso
           if-no-files-found: error
 
-  # ---------------------------------------------------------------------------
-  # Stage 3: Smoke-test booting the ISOs in QEMU
-  # ---------------------------------------------------------------------------
-  smoke-pacmanos:
-    needs: build-pacmanos
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull build environment
-        run: docker pull "${BUILDENV_IMAGE}:latest"
-
       - name: Run smoke tests
-        run: IMAGE="${BUILDENV_IMAGE}:latest" ./buildenv.sh smoke 10
+        run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh smoke 10
