@@ -7,7 +7,7 @@
 static bool can_go(const struct board *board, vec_t tile, dir_t dir)
 {
     vec_t next = grid_step(tile, dir, LEVEL_TILE_DIMS);
-    return board_walkable_pacman(board, next);
+    return board_walkable(board, next, PF_WALLS_AND_GATES);
 }
 
 static void try_turn(struct pacman *self, const struct board *board)

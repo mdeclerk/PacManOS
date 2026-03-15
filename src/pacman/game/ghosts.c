@@ -57,7 +57,7 @@ static void parse_level_topology(struct ghost_map *map, const struct board *boar
     int gate_center = gate_min_col + gate_span / 2;
     vec_t exit = { .row = grid_wrap(gate_row - 1, LEVEL_ROWS), .col = gate_center };
 
-    if (!board_walkable_ghost(board, exit) || is_gate_tile(map, exit))
+    if (!board_walkable(board, exit, PF_WALLS_AND_GATES) || is_gate_tile(map, exit))
         PANIC("level %d has invalid ghost gate exit", level);
 
     map->spawn = spawn;
@@ -70,18 +70,6 @@ static uint32_t rng_next(struct ghost *g)
     return g->rng;
 }
 
-static bool can_step(const struct board *board, const struct ghost_map *map,
-                     ghost_mode_t mode, vec_t tile)
-{
-    if (!board_walkable_ghost(board, tile))
-        return false;
-
-    if (!is_gate_tile(map, tile))
-        return true;
-
-    return mode == GHOST_EYES || mode == GHOST_EXITING;
-}
-
 static uint32_t ghost_step_ms(ghost_mode_t mode)
 {
     return mode == GHOST_FRIGHTENED ? GHOST_STEP_FRIGHTENED
@@ -89,60 +77,24 @@ static uint32_t ghost_step_ms(ghost_mode_t mode)
          :                            GHOST_STEP_NORMAL;
 }
 
-static dir_t bfs_to(const struct board *board, const struct ghost_map *map,
-                    vec_t start, vec_t target, ghost_mode_t mode)
+static enum pathfinder_flags ghost_pf_flags(ghost_mode_t mode)
 {
-    bool visited[LEVEL_ROWS][LEVEL_COLS];
-    int8_t first_dir[LEVEL_ROWS][LEVEL_COLS];
-    int qr[LEVEL_ROWS * LEVEL_COLS], qc[LEVEL_ROWS * LEVEL_COLS];
-    int head = 0, tail = 0;
-
-    memset(visited, 0, sizeof(visited));
-    memset(first_dir, -1, sizeof(first_dir));
-
-    int sr = grid_wrap(start.row, LEVEL_ROWS);
-    int sc = grid_wrap(start.col, LEVEL_COLS);
-    int tr = grid_wrap(target.row, LEVEL_ROWS);
-    int tc = grid_wrap(target.col, LEVEL_COLS);
-
-    visited[sr][sc] = true;
-    qr[tail] = sr;
-    qc[tail] = sc;
-    tail++;
-
-    while (head < tail) {
-        int r = qr[head], c = qc[head];
-        head++;
-
-        for (int d = 0; d < 4; d++) {
-            vec_t next = grid_step((vec_t){ .row = r, .col = c }, (dir_t)d, LEVEL_TILE_DIMS);
-            int nr = next.row;
-            int nc = next.col;
-            if (visited[nr][nc] || !can_step(board, map, mode, next)) continue;
-            visited[nr][nc] = true;
-            first_dir[nr][nc] = (first_dir[r][c] < 0) ? (int8_t)d : first_dir[r][c];
-            if (nr == tr && nc == tc) return (dir_t)first_dir[nr][nc];
-            qr[tail] = nr;
-            qc[tail] = nc;
-            tail++;
-        }
-    }
-
-    return DIR_NONE;
+    return (mode == GHOST_EYES || mode == GHOST_EXITING)
+         ? PF_WALLS_ONLY : PF_WALLS_AND_GATES;
 }
 
-static dir_t pick_dir(struct ghost *g, const struct board *board,
-                      const struct ghost_map *map)
+static dir_t pick_dir(struct ghost *g, const struct board *board)
 {
     dir_t opts[4], fallback = DIR_NONE;
     int n = 0, total = 0;
     dir_t rev = (g->dir != DIR_NONE) ? dir_opposite(g->dir) : DIR_NONE;
     bool can_continue = false;
+    enum pathfinder_flags flags = ghost_pf_flags(g->mode);
 
     for (int d = 0; d < 4; d++) {
         dir_t dir = (dir_t)d;
         vec_t next = grid_step(g->tile, dir, LEVEL_TILE_DIMS);
-        if (!can_step(board, map, g->mode, next)) continue;
+        if (!board_walkable(board, next, flags)) continue;
         total++;
         if (dir == g->dir) can_continue = true;
         if (dir == rev) {
@@ -173,13 +125,14 @@ static void update_at_center(struct ghost *g, const struct board *board,
     if (g->mode == GHOST_EXITING && g->tile.row == exit.row && g->tile.col == exit.col)
         g->mode = power_active ? GHOST_FRIGHTENED : GHOST_NORMAL;
 
+    enum pathfinder_flags flags = ghost_pf_flags(g->mode);
     dir_t next;
     if (g->mode == GHOST_EYES)
-        next = bfs_to(board, map, g->tile, spawn, GHOST_EYES);
+        next = board_find_path(board, g->tile, spawn, flags);
     else if (g->mode == GHOST_EXITING)
-        next = bfs_to(board, map, g->tile, exit, GHOST_EXITING);
+        next = board_find_path(board, g->tile, exit, flags);
     else
-        next = pick_dir(g, board, map);
+        next = pick_dir(g, board);
 
     if (next != DIR_NONE) g->dir = next;
 }
@@ -198,7 +151,7 @@ static void ghost_reset_one(struct ghost *g, const struct board *board,
         .row = grid_wrap(spawn.row + dr[id % 4], LEVEL_ROWS),
         .col = grid_wrap(spawn.col + dc[id % 4], LEVEL_COLS),
     };
-    if (!can_step(board, map, GHOST_EXITING, pos))
+    if (!board_walkable(board, pos, PF_WALLS_ONLY))
         pos = spawn;
 
     *g = (struct ghost){
