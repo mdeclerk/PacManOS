@@ -18,13 +18,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build buildenv image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: buildenv
@@ -37,7 +37,7 @@ jobs:
         run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh make-dbg
 
       - name: Upload debug ISO
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pacmanos-dbg-iso
           path: out/debug/pacmanos.iso
@@ -47,7 +47,7 @@ jobs:
         run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh make-rel
 
       - name: Upload release ISO
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pacmanos-rel-iso
           path: out/release/pacmanos.iso
