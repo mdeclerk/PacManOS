@@ -2,7 +2,7 @@
 #include "pacman/assets/assets.h"
 #include "stdlib/stdio.h"
 
-static int selected;
+static int selected_level;
 
 static void on_event(const struct event *event)
 {
@@ -12,13 +12,13 @@ static void on_event(const struct event *event)
     int count = assets.levels->header.count;
     switch (event->key.keycode) {
         case KEYCODE_UP:
-            selected = (selected + count - 1) % count;
+            selected_level = (selected_level + count - 1) % count;
             break;
         case KEYCODE_DOWN:
-            selected = (selected + 1) % count;
+            selected_level = (selected_level + 1) % count;
             break;
         case KEYCODE_ENTER:
-            game_screen_start(selected);
+            screen_set_active(&game_screen, (void *)(intptr_t)selected_level);
             break;
         default: break;
     }
@@ -47,7 +47,7 @@ static void draw(uint32_t fps)
     int y = FB_HEIGHT * 2 / 3;
     for (int i = 0; i < count; i++) {
         const char *name = assets.levels->entries[i].name;
-        if (i == selected) {
+        if (i == selected_level) {
             char buf[96];
             snprintf(buf, sizeof(buf), "> %s <", name);
             draw_centered(y, buf, FB_YELLOW);

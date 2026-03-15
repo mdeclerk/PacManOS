@@ -4,7 +4,7 @@
 #include "stdlib/stdint.h"
 
 struct screen {
-    void (*start)(void);
+    void (*start)(void *arg);
     void (*stop)(void);
     void (*on_event)(const struct event *event);
     void (*tick)(uint32_t dt_ms);
@@ -12,4 +12,4 @@ struct screen {
 };
 
 struct screen *screen_get_active(void);
-void screen_set_active(struct screen *s);
+void screen_set_active(struct screen *s, void *arg);

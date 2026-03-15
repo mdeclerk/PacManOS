@@ -4,15 +4,16 @@
 
 #define BLINK_MS 500u
 
-static void start(void)
+static void start(void *arg)
 {
+    (void)arg;
     assets_init();
 }
 
 static void on_event(const struct event *event)
 {
     if (event->type == ETYPE_KEY && event->key.type == KEYEVENT_TYPE_PRESS)
-        screen_set_active(&menu_screen);
+        screen_set_active(&menu_screen, NULL);
 }
 
 static void draw(uint32_t fps)

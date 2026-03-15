@@ -16,8 +16,9 @@ static struct image load_png(const char *name)
     return fb_decode_png(bin.base, bin.size);
 }
 
-static void start(void)
+static void start(void *arg)
 {
+    (void)arg;
     background = load_png("test.png");
 
     font = (struct font){
