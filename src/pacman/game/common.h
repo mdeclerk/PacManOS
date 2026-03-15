@@ -1,7 +1,6 @@
 #pragma once
 
 #include "stdlib/stdint.h"
-#include "stdlib/stdbool.h"
 
 /* ---- vector / direction primitives ---- */
 

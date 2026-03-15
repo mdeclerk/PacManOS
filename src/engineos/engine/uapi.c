@@ -15,7 +15,7 @@ struct uapi_export {
     uintptr_t addr;
 };
 
-#define UAPI_EXPORT_SYMBOL(fn, export_name) { ((export_name) != NULL ? (export_name) : #fn), (uintptr_t)(fn) },
+#define UAPI_EXPORT_SYMBOL(fn, export_name) { ((export_name) != nullptr ? (export_name) : #fn), (uintptr_t)(fn) },
 
 static const struct uapi_export uapi_exports[] = {
 #include "engineos/engine/uapi.def"

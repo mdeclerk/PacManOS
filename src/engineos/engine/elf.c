@@ -3,7 +3,6 @@
 #include "engineos/engine/uapi.h"
 #include "engineos/kernel/heap.h"
 #include "engineos/kernel/log.h"
-#include "stdlib/stdbool.h"
 #include "stdlib/string.h"
 
 /* ELF constants */
@@ -122,9 +121,9 @@ static uintptr_t align_up(uintptr_t v, uint32_t a)
 static const char *strtab_get(const char *tab, size_t tab_size, uint32_t off)
 {
     if ((size_t)off >= tab_size)
-        return NULL;
+        return nullptr;
     size_t max = tab_size - (size_t)off;
-    return strnlen(tab + off, max) < max ? tab + off : NULL;
+    return strnlen(tab + off, max) < max ? tab + off : nullptr;
 }
 
 /* Header validation & init */
@@ -150,7 +149,7 @@ static bool validate_header(const struct elf32_ehdr *eh, size_t size)
 static struct elf_image_priv *alloc_init(const void *data, size_t size)
 {
     if (!data)
-        PANIC("ELF data is NULL");
+        PANIC("ELF data is nullptr");
 
     struct elf_image_priv *priv = (struct elf_image_priv *)heap_alloc(sizeof(*priv));
     memset(priv, 0, sizeof(*priv));
@@ -246,7 +245,7 @@ static bool copy_alloc_sections(const struct elf_image_priv *priv)
 
 static bool find_symtab(struct elf_image_priv *priv)
 {
-    const struct elf32_shdr *sym_sh = NULL;
+    const struct elf32_shdr *sym_sh = nullptr;
 
     for (uint16_t i = 0u; i < priv->eh->e_shnum; i++) {
         if (priv->shdrs[i].sh_type == SHT_SYMTAB) {

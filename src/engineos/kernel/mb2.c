@@ -118,7 +118,7 @@ static inline void parse_tag_framebuffer(const struct mb2_tag_framebuffer *fb)
 void mb2_init(void *ptr)
 {
     if (!ptr)
-        PANIC("Multiboot2 info pointer is NULL");
+        PANIC("Multiboot2 info pointer is nullptr");
 
     log("%s: addr %p", __func__, ptr);
 
@@ -150,5 +150,5 @@ const struct mb2_module_entry *mb2_find_module_by_magic(const void *magic, size_
             return mod;
         }
     }
-    return NULL;
+    return nullptr;
 }

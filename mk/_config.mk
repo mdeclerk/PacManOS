@@ -16,7 +16,7 @@ BUILD_DIR      := $(OUT_DIR)/$(BUILD)
 GAMES := pacman helloworld
 
 WFLAGS  := -Wall -Wextra -Werror -Wpedantic
-CFLAGS  := -m32 -ffreestanding $(WFLAGS) -I$(SRC_DIR) -MMD -MP
+CFLAGS  := -m32 -std=gnu23 -ffreestanding $(WFLAGS) -I$(SRC_DIR) -MMD -MP
 LDFLAGS := -m elf_i386
 
 ifeq ($(BUILD),release)

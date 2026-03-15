@@ -19,7 +19,7 @@ static void tick(uint32_t dt)
 {
     game_tick(&game, dt);
     if (game.state == STATE_QUIT)
-        screen_set_active(&menu_screen, NULL);
+        screen_set_active(&menu_screen, nullptr);
 }
 
 static void draw(uint32_t fps)

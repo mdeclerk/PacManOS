@@ -1,6 +1,5 @@
 #include "stdio.h"
 #include "stdint.h"
-#include "stdbool.h"
 
 struct out_buf {
     char *dst;
@@ -43,7 +42,7 @@ static void out_str(struct out_buf *out, const char *str) {
     }
 }
 
-int vsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
+int vsnprintf(char *restrict str, size_t size, const char *restrict fmt, va_list ap) {
     struct out_buf out = { str, size, 0 };
     const char *p = fmt;
 
@@ -175,7 +174,7 @@ int vsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
     return (int)out.pos;
 }
 
-int snprintf(char *str, size_t size, const char *fmt, ...) {
+int snprintf(char *restrict str, size_t size, const char *restrict fmt, ...) {
     int written;
     va_list ap;
 

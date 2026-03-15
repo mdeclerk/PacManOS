@@ -2,7 +2,6 @@
 
 #include "pacman/game/common.h"
 #include "engineos/include/fb.h"
-#include "stdlib/stdbool.h"
 #include "stdlib/stdint.h"
 
 #define LEVEL_ROWS 31

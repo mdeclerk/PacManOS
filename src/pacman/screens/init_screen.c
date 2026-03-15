@@ -12,7 +12,7 @@ static void start(void *arg)
 static void on_event(const struct event *event)
 {
     if (event->type == ETYPE_KEY && event->key.type == KEYEVENT_TYPE_PRESS)
-        screen_set_active(&menu_screen, NULL);
+        screen_set_active(&menu_screen, nullptr);
 }
 
 static void draw(uint32_t fps)

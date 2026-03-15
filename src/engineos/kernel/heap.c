@@ -2,7 +2,6 @@
 #include "log.h"
 #include "mb2.h"
 #include "stdlib/stdint.h"
-#include "stdlib/stdbool.h"
 
 #define HEAP_ALIGN     16
 #define HEAP_MIN_ALLOC 16
@@ -31,7 +30,7 @@ struct block {
 static inline size_t block_size(struct block *blk)
 {
     size_t start = (size_t)blk;
-    size_t end = (blk->next != NULL) ? (size_t)blk->next : (size_t)heap_limit;
+    size_t end = (blk->next != nullptr) ? (size_t)blk->next : (size_t)heap_limit;
     return  end - start;
 }
 
@@ -57,12 +56,12 @@ static void heap_selftest()
 
     // Test 1: Basic allocation
     void *p1 = heap_alloc(32);
-    bool t1 = (p1 != NULL);
+    bool t1 = (p1 != nullptr);
     log("  alloc(32)        : %s (%p)", t1 ? "PASS" : "FAIL", p1);
 
     // Test 2: Second allocation
     void *p2 = heap_alloc(64);
-    bool t2 = (p2 != NULL) && (p2 != p1);
+    bool t2 = (p2 != nullptr) && (p2 != p1);
     log("  alloc(64)        : %s (%p)", t2 ? "PASS" : "FAIL", p2);
 
     // Test 3: Alignment check
@@ -73,13 +72,13 @@ static void heap_selftest()
     heap_free(p1);
     heap_free(p2);
     void *p3 = heap_alloc(128);
-    bool t4 = (p3 != NULL);
+    bool t4 = (p3 != nullptr);
     log("  free+realloc     : %s (%p)", t4 ? "PASS" : "FAIL", p3);
 
-    // Test 5: Zero-size allocation returns NULL
+    // Test 5: Zero-size allocation returns nullptr
     void *p4 = heap_alloc(0);
-    bool t5 = (p4 == NULL);
-    log("  alloc(0)==NULL   : %s", t5 ? "PASS" : "FAIL");
+    bool t5 = (p4 == nullptr);
+    log("  alloc(0)==nullptr   : %s", t5 ? "PASS" : "FAIL");
 
     // Test 6: Reserve exact previously-allocated address
     heap_free(p3);
@@ -91,7 +90,7 @@ static void heap_selftest()
 
     // Test 7: Normal alloc should avoid reserved fixed address
     void *p7 = heap_alloc(96);
-    bool t7 = (p7 != NULL) && (p7 != p6);
+    bool t7 = (p7 != nullptr) && (p7 != p6);
     log("  alloc avoids at  : %s (%p)", t7 ? "PASS" : "FAIL", p7);
     heap_free(p7);
     heap_free(p6);
@@ -106,7 +105,7 @@ static void heap_selftest()
 
     // Test 9: Allocation from prefix/suffix free space still works
     void *p9 = heap_alloc(32);
-    bool t9 = (p9 != NULL) && (p9 != p8);
+    bool t9 = (p9 != nullptr) && (p9 != p8);
     log("  alloc around at  : %s (%p)", t9 ? "PASS" : "FAIL", p9);
     heap_free(p9);
     heap_free(p8);
@@ -115,8 +114,8 @@ static void heap_selftest()
     bool t10 = heap_base == (void *)align_up((uintptr_t)_heap_start)
         && heap_limit == (void *)align_down(mb2_info.mmap.max_mem)
         && ((struct block *)heap_base)->free == true
-        && ((struct block *)heap_base)->next == NULL 
-        && ((struct block *)heap_base)->prev == NULL;
+        && ((struct block *)heap_base)->next == nullptr 
+        && ((struct block *)heap_base)->prev == nullptr;
     log("  heap reset       : %s", t10 ? "PASS" : "FAIL");
 }
 #endif
@@ -131,8 +130,8 @@ void heap_init(void)
 
     struct block *blk = (struct block *)heap_base;
     blk->free = true;
-    blk->prev = NULL;
-    blk->next = NULL;
+    blk->prev = nullptr;
+    blk->next = nullptr;
 
     log("%s: base %p, limit %p, size %u KiB",
         __func__, heap_base, heap_limit, block_size(blk) / 1024);
@@ -178,7 +177,7 @@ void heap_alloc_mb2_modules(void)
 void *heap_alloc(size_t size)
 {
     if (size == 0)
-        return NULL;
+        return nullptr;
 
     size_t alloc_size = align_up(size);
     if (alloc_size < HEAP_MIN_ALLOC)
@@ -187,7 +186,7 @@ void *heap_alloc(size_t size)
     size_t total_size = sizeof(struct block) + alloc_size;
 
     struct block *blk = (struct block *)heap_base;
-    while (blk != NULL) {
+    while (blk != nullptr) {
         size_t blk_size = block_size(blk);
         if (blk->free && blk_size >= total_size) {
             // Split block if remainder is large enough
@@ -197,7 +196,7 @@ void *heap_alloc(size_t size)
                 new_blk->free = true;
                 new_blk->prev = blk;
                 new_blk->next = blk->next;
-                if (blk->next != NULL)
+                if (blk->next != nullptr)
                     blk->next->prev = new_blk;
                 blk->next = new_blk;
             }
@@ -209,15 +208,15 @@ void *heap_alloc(size_t size)
     }
 
     PANIC("out of memory (requested %u bytes)", size);
-    return NULL;
+    return nullptr;
 }
 
 void *heap_alloc_at(void *ptr, size_t size)
 {
     if (size == 0)
-        return NULL;
-    if (ptr == NULL)
-        PANIC("ptr is NULL");
+        return nullptr;
+    if (ptr == nullptr)
+        PANIC("ptr is nullptr");
 
     uintptr_t req_ptr = (uintptr_t)ptr;
     if ((req_ptr % HEAP_ALIGN) != 0)
@@ -242,7 +241,7 @@ void *heap_alloc_at(void *ptr, size_t size)
               (void *)req_start, (void *)req_end, (void *)heap_start, (void *)heap_end);
 
     struct block *blk = (struct block *)heap_base;
-    while (blk != NULL) {
+    while (blk != nullptr) {
         uintptr_t blk_start = (uintptr_t)blk;
         uintptr_t blk_end = blk_start + block_size(blk);
         if (!(blk_start <= req_start && req_end <= blk_end)) {
@@ -265,7 +264,7 @@ void *heap_alloc_at(void *ptr, size_t size)
             alloc_blk = (struct block *)req_start;
             alloc_blk->prev = blk;
             alloc_blk->next = old_next;
-            if (old_next != NULL)
+            if (old_next != nullptr)
                 old_next->prev = alloc_blk;
             blk->next = alloc_blk;
             blk->free = true;
@@ -277,7 +276,7 @@ void *heap_alloc_at(void *ptr, size_t size)
             suffix_blk->free = true;
             suffix_blk->prev = alloc_blk;
             suffix_blk->next = alloc_blk->next;
-            if (alloc_blk->next != NULL)
+            if (alloc_blk->next != nullptr)
                 alloc_blk->next->prev = suffix_blk;
             alloc_blk->next = suffix_blk;
         }
@@ -287,28 +286,28 @@ void *heap_alloc_at(void *ptr, size_t size)
     }
 
     PANIC("out of memory (requested %u bytes at %p)", size, ptr);
-    return NULL;
+    return nullptr;
 }
 
 void heap_free(void *ptr)
 {
-    if (ptr == NULL)
+    if (ptr == nullptr)
         return;
 
     struct block *blk = ptr_to_block(ptr);
     blk->free = true;
 
     // coalesce with next block (just unlink it)
-    if (blk->next != NULL && blk->next->free) {
+    if (blk->next != nullptr && blk->next->free) {
         blk->next = blk->next->next;
-        if (blk->next != NULL)
+        if (blk->next != nullptr)
             blk->next->prev = blk;
     }
 
     // coalesce with previous block (unlink current)
-    if (blk->prev != NULL && blk->prev->free) {
+    if (blk->prev != nullptr && blk->prev->free) {
         blk->prev->next = blk->next;
-        if (blk->next != NULL)
+        if (blk->next != nullptr)
             blk->next->prev = blk->prev;
     }
 }
@@ -319,7 +318,7 @@ void heap_dump(void)
     size_t used_bytes = 0;
     size_t unused_bytes = 0;
 
-    for (struct block *blk = (struct block *)heap_base; blk != NULL; blk = blk->next) {
+    for (struct block *blk = (struct block *)heap_base; blk != nullptr; blk = blk->next) {
         size_t blk_bytes = block_size(blk);
         if (blk->free)
             unused_bytes += blk_bytes;
@@ -333,7 +332,7 @@ void heap_dump(void)
         bytes_to_kib(used_bytes),
         bytes_to_kib(unused_bytes));
 
-    for (struct block *blk = (struct block *)heap_base; blk != NULL; blk = blk->next) {
+    for (struct block *blk = (struct block *)heap_base; blk != nullptr; blk = blk->next) {
         if (blk->free)
             continue;
 

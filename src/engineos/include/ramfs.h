@@ -1,6 +1,5 @@
 #pragma once
 
-#include "stdlib/stdbool.h"
 #include "stdlib/stddef.h"
 
 struct ramfs_binary {

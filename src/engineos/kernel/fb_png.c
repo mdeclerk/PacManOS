@@ -254,7 +254,7 @@ static int png_unfilter_inplace(uint8_t *buf, uint32_t w, uint32_t h, int bpp)
         const uint8_t *src = buf + y * (stride + 1) + 1;
         uint8_t *dst = buf + y * stride;
         uint8_t filter = src[-1];
-        const uint8_t *prev = (y == 0) ? NULL : (dst - stride);
+        const uint8_t *prev = (y == 0) ? nullptr : (dst - stride);
 
         for (uint32_t x = 0; x < stride; x++) {
             uint8_t raw_byte = src[x];
@@ -287,9 +287,9 @@ struct image fb_decode_png(const void *data, size_t size)
     const uint8_t *bytes = (const uint8_t *)data;
     uint32_t width = 0, height = 0;
     uint8_t bit_depth = 0, color_type = 0;
-    uint8_t *idat_buf = NULL;
+    uint8_t *idat_buf = nullptr;
     size_t idat_size = 0, idat_cap = 0;
-    uint8_t *raw = NULL;
+    uint8_t *raw = nullptr;
 
     if (!bytes || size < 8)
         return result;

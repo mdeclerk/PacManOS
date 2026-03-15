@@ -5,7 +5,6 @@
 #include "pacman/game/pacman.h"
 #include "pacman/game/ghosts.h"
 #include "engineos/include/event.h"
-#include "stdlib/stdbool.h"
 #include "stdlib/stdint.h"
 
 enum game_state {

@@ -1,4 +1,4 @@
 #pragma once
 
-void game_run(void) __attribute__((noreturn));
+[[noreturn]] void game_run(void);
 

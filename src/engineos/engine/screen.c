@@ -24,6 +24,6 @@ void screen_init(struct screen *s)
     active_screen = s;
 
     if (active_screen->start)
-        active_screen->start(NULL);
+        active_screen->start(nullptr);
 }
 

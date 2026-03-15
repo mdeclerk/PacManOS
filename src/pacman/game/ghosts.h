@@ -2,7 +2,6 @@
 
 #include "pacman/game/common.h"
 #include "pacman/assets/levels.h"
-#include "stdlib/stdbool.h"
 #include "stdlib/stdint.h"
 
 #define GHOST_COUNT 4

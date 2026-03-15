@@ -11,10 +11,10 @@ void *memset(void *dst, int value, size_t size)
     return dst;
 }
 
-void *memcpy(void *dst, const void *src, size_t size)
+void *memcpy(void *restrict dst, const void *restrict src, size_t size)
 {
-    unsigned char *d = (unsigned char *)dst;
-    const unsigned char *s = (const unsigned char *)src;
+    unsigned char *restrict d = (unsigned char *)dst;
+    const unsigned char *restrict s = (const unsigned char *)src;
 
     for (size_t i = 0; i < size; i++)
         d[i] = s[i];
@@ -62,7 +62,7 @@ size_t strnlen(const char *str, size_t n)
     return i;
 }
 
-char *strncpy(char *dst, const char *src, size_t n)
+char *strncpy(char *restrict dst, const char *restrict src, size_t n)
 {
     size_t i = 0;
 

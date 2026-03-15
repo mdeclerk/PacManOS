@@ -45,7 +45,7 @@ void ramfs_init(void)
     const uint8_t *end = start + size;
 
     if (!start)
-        PANIC("ramfs data is NULL");
+        PANIC("ramfs data is nullptr");
     if ((uintptr_t)start + size < (uintptr_t)start)
         PANIC("ramfs data range overflows");
     if (size < RAMFS_HEADER_SIZE)
@@ -67,7 +67,7 @@ void ramfs_init(void)
         ramfs_entries = (struct ramfs_entry *)heap_alloc(
             (size_t)count * sizeof(struct ramfs_entry));
     } else {
-        ramfs_entries = NULL;
+        ramfs_entries = nullptr;
     }
 
     for (uint32_t i = 0u; i < count; i++) {
@@ -129,10 +129,10 @@ struct ramfs_binary ramfs_get_binary(const char *id)
     }
 
     PANIC("ramfs file not found: %s", id);
-    return (struct ramfs_binary){ NULL, 0 };
+    return (struct ramfs_binary){ nullptr, 0 };
 }
 
 bool ramfs_validate_binary(const struct ramfs_binary *bin)
 {
-    return bin->base != NULL && bin->size != 0u;
+    return bin->base != nullptr && bin->size != 0u;
 }

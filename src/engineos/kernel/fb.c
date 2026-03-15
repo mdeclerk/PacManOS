@@ -13,7 +13,7 @@ static struct font font;
 void fb_init(void)
 {
     if (!mb2_info.fb.addr)
-        PANIC("frambuffer is NULL");
+        PANIC("frambuffer is nullptr");
 
     if (mb2_info.fb.width != FB_WIDTH ||
         mb2_info.fb.height != FB_HEIGHT ||
@@ -73,14 +73,14 @@ static inline color_t tint_color(color_t pixel, color_t tint)
         |  (((pixel        & 0xFFu) * ( tint        & 0xFFu) / 255u));
 }
 
-void fb_blit(int x, int y, struct image *atlas, bool use_src_alpha, color_t tint)
+void fb_blit(int x, int y, struct image *restrict src, bool use_src_alpha, color_t tint)
 {
     int src_x = 0;
     int src_y = 0;
     int dst_x = x;
     int dst_y = y;
-    int blit_w = atlas->width;
-    int blit_h = atlas->height;
+    int blit_w = src->width;
+    int blit_h = src->height;
     bool apply_tint = tint != FB_WHITE;
 
     if (dst_x < 0) {
@@ -102,22 +102,22 @@ void fb_blit(int x, int y, struct image *atlas, bool use_src_alpha, color_t tint
         return;
 
     for (int yy = 0; yy < blit_h; yy++) {
-        color_t *dst = &backbuffer[(dst_y + yy) * FB_WIDTH + dst_x];
-        color_t *src = &atlas->pixels[(src_y + yy) * atlas->pitch + src_x];
+        color_t *restrict d = &backbuffer[(dst_y + yy) * FB_WIDTH + dst_x];
+        color_t *restrict s = &src->pixels[(src_y + yy) * src->pitch + src_x];
 
         if (!use_src_alpha && !apply_tint) {
-            memcpy(dst, src, (size_t)blit_w * sizeof(color_t));
+            memcpy(d, s, (size_t)blit_w * sizeof(color_t));
             continue;
         }
 
         for (int xx = 0; xx < blit_w; xx++) {
-            color_t px = apply_tint ? tint_color(src[xx], tint) : src[xx];
+            color_t p = apply_tint ? tint_color(s[xx], tint) : s[xx];
             if (!use_src_alpha) {
-                dst[xx] = px;
+                d[xx] = p;
                 continue;
             }
-            uint8_t alpha = (px >> 24) & 0xFFu;
-            dst[xx] = alpha_blend(px, dst[xx], alpha);
+            uint8_t alpha = (p >> 24) & 0xFFu;
+            d[xx] = alpha_blend(p, d[xx], alpha);
         }
     }
 }
