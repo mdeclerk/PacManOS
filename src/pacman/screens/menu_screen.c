@@ -24,7 +24,7 @@ static void on_event(const struct event *event)
     }
 }
 
-static void draw_centered(int y, const char *text, color_t color)
+static void draw_hcentered(int y, const char *text, color_t color)
 {
     int w, h;
     fb_get_text_size(text, &w, &h);
@@ -50,9 +50,9 @@ static void draw(uint32_t fps)
         if (i == selected_level) {
             char buf[96];
             snprintf(buf, sizeof(buf), "> %s <", name);
-            draw_centered(y, buf, FB_YELLOW);
+            draw_hcentered(y, buf, FB_YELLOW);
         } else {
-            draw_centered(y, name, FB_WHITE);
+            draw_hcentered(y, name, FB_WHITE);
         }
         y += th + 8;
     }

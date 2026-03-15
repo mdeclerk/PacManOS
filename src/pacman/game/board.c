@@ -2,19 +2,14 @@
 #include "pacman/assets/assets.h"
 #include "stdlib/string.h"
 
-static inline bool is_wall(uint8_t t)
-{
-    return (uint8_t)(t - LEVEL_TILE_WALL_BASE) < LEVEL_TILE_WALL_COUNT;
-}
-
 static inline bool tile_walkable(uint8_t t)
 {
-    return !is_wall(t);
+    return !level_is_wall(t);
 }
 
 static inline bool tile_walkable_pacman(uint8_t t)
 {
-    return !is_wall(t) && t != LEVEL_TILE_GHOST_GATE;
+    return !level_is_wall(t) && t != LEVEL_TILE_GHOST_GATE;
 }
 
 static bool walkable_role(const struct board *self, vec_t tile, bool pacman_role)

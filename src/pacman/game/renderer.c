@@ -42,13 +42,6 @@ static color_t power_spr[POWER_SIZE * POWER_SIZE];
 
 static struct image ghost_atlas;
 
-/* ---- wall helpers ---- */
-
-static inline bool is_wall(uint8_t t)
-{
-    return (uint8_t)(t - LEVEL_TILE_WALL_BASE) < LEVEL_TILE_WALL_COUNT;
-}
-
 /* ---- asset initialization ---- */
 
 static void init_item_sprites(void)
@@ -81,7 +74,7 @@ static void render_board(const struct board *board, vec_t origin)
     for (int r = 0; r < LEVEL_ROWS; r++)
         for (int c = 0; c < LEVEL_COLS; c++) {
             uint8_t t = board->tiles[r][c];
-            if (is_wall(t)) {
+            if (level_is_wall(t)) {
                 int shape = t - LEVEL_TILE_WALL_BASE;
                 int sx = (shape % TILESET_COLS) * TILESET_TILE;
                 int sy = (shape / TILESET_COLS) * TILESET_TILE;

@@ -2,15 +2,13 @@
 
 #include "pacman/game/common.h"
 #include "engineos/include/fb.h"
+#include "stdlib/stdbool.h"
 #include "stdlib/stdint.h"
 
 #define LEVEL_ROWS 31
 #define LEVEL_COLS 28
 #define LEVEL_TILE 24
 #define LEVEL_NAME_LEN 32
-
-#define LEVEL_MAGIC "PMAP"
-#define LEVEL_VERSION 1u
 
 #define LEVEL_TILE_DIMS  ((vec_t){ .row = LEVEL_ROWS, .col = LEVEL_COLS })
 #define LEVEL_PIXEL_DIMS ((vec_t){ .x = LEVEL_COLS * LEVEL_TILE, .y = LEVEL_ROWS * LEVEL_TILE })
@@ -25,7 +23,10 @@
 #define LEVEL_TILE_WALL_COUNT   16
 #define LEVEL_TILE_WALL_MAX     (LEVEL_TILE_WALL_BASE + LEVEL_TILE_WALL_COUNT)
 
-#define LEVEL_RECORD_SIZE (LEVEL_NAME_LEN + sizeof(color_t) + LEVEL_ROWS * LEVEL_COLS)
+static inline bool level_is_wall(uint8_t t)
+{
+    return (uint8_t)(t - LEVEL_TILE_WALL_BASE) < LEVEL_TILE_WALL_COUNT;
+}
 
 struct levels_header {
     char magic[4];

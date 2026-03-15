@@ -114,13 +114,9 @@ void game_init(struct game *self, int level)
 
 void game_tick(struct game *self, uint32_t dt_ms)
 {
-    if (self->quit) self->state = STATE_QUIT;
-
     switch (self->state) {
         case STATE_READY:
-            if (!self->started) break;
-            self->state = STATE_RUNNING;
-            /* fall through */
+            break;
         case STATE_RUNNING:
             update_running(self, dt_ms);
             break;
@@ -141,8 +137,6 @@ void game_tick(struct game *self, uint32_t dt_ms)
     }
 
     self->frame++;
-    self->started = false;
-    self->quit = false;
 }
 
 void game_draw(const struct game *self, uint32_t fps)
@@ -154,10 +148,12 @@ void game_on_event(struct game *self, const struct event *event)
 {
     if (event->type != ETYPE_KEY || event->key.type != KEYEVENT_TYPE_PRESS) return;
 
-    self->started = true;
+    if (self->state == STATE_READY)
+        self->state = STATE_RUNNING;
+
     switch (event->key.keycode) {
         case KEYCODE_ESC:
-            self->quit = true;
+            self->state = STATE_QUIT;
             break;
         case KEYCODE_UP:
             pacman_queue_dir(&self->pacman, DIR_UP);

@@ -27,8 +27,6 @@ struct game {
     uint32_t state_ms;
     uint32_t frame;
     uint8_t ghost_chain;
-    bool started;
-    bool quit;
     struct board board;
     struct pacman pacman;
     struct ghosts ghosts;
