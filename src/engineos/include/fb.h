@@ -45,7 +45,7 @@ static inline struct image fb_subrect(struct image *im, int x, int y, int w, int
 struct image fb_decode_png(const void *data, size_t size);
 
 void fb_clear(color_t color);
-void fb_blit(int x, int y, struct image *restrict src, bool use_src_alpha, color_t tint);
+void fb_blit(int x, int y, const struct image *src, bool use_src_alpha, color_t tint);
 
 void fb_set_font(const struct font *font);
 void fb_puts(int x, int y, const char *str, color_t fg, color_t bg);

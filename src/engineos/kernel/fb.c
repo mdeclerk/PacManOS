@@ -44,11 +44,9 @@ void fb_show(void)
     memcpy(frontbuffer, backbuffer, FB_SIZE);
 }
 
-static inline uint8_t alpha_blend_channel(uint8_t src, uint8_t dst, uint8_t alpha)
+static inline uint32_t div255(uint32_t x)
 {
-    uint32_t inv = 255u - alpha;
-    uint32_t num = (uint32_t)src * alpha + (uint32_t)dst * inv;
-    return (uint8_t)((num + 127u) / 255u);
+    return ((x + 0x80u) + ((x + 0x80u) >> 8)) >> 8;
 }
 
 static inline color_t alpha_blend(color_t src, color_t dst, uint8_t alpha)
@@ -59,21 +57,41 @@ static inline color_t alpha_blend(color_t src, color_t dst, uint8_t alpha)
     if (alpha == 255)
         return src;
 
-    return FB_RGB(
-        alpha_blend_channel((src >> 16) & 0xFFu, (dst >> 16) & 0xFFu, alpha),
-        alpha_blend_channel((src >> 8) & 0xFFu, (dst >> 8) & 0xFFu, alpha),
-        alpha_blend_channel(src & 0xFFu, dst & 0xFFu, alpha));
+    uint32_t a = alpha;
+    uint32_t inv = 255u - a;
+
+    uint32_t src_rb = src & 0x00FF00FFu;
+    uint32_t dst_rb = dst & 0x00FF00FFu;
+    uint32_t src_g  = src & 0x0000FF00u;
+    uint32_t dst_g  = dst & 0x0000FF00u;
+
+    uint32_t rb = src_rb * a + dst_rb * inv + 0x00800080u;
+    rb = ((rb + ((rb >> 8) & 0x00FF00FFu)) >> 8) & 0x00FF00FFu;
+
+    uint32_t g = src_g * a + dst_g * inv + 0x00008000u;
+    g = ((g + ((g >> 8) & 0x0000FF00u)) >> 8) & 0x0000FF00u;
+
+    return rb | g;
 }
 
 static inline color_t tint_color(color_t pixel, color_t tint)
 {
-    return (pixel & 0xFF000000u)
-        | ((((pixel >> 16) & 0xFFu) * ((tint >> 16) & 0xFFu) / 255u) << 16)
-        | ((((pixel >> 8)  & 0xFFu) * ((tint >> 8)  & 0xFFu) / 255u) << 8)
-        |  (((pixel        & 0xFFu) * ( tint        & 0xFFu) / 255u));
+    uint32_t tint_r = (tint >> 16) & 0xFFu;
+    uint32_t tint_g = (tint >> 8)  & 0xFFu;
+    uint32_t tint_b =  tint        & 0xFFu;
+
+    uint32_t pix_r = (pixel >> 16) & 0xFFu;
+    uint32_t pix_g = (pixel >> 8)  & 0xFFu;
+    uint32_t pix_b =  pixel        & 0xFFu;
+
+    uint32_t r = div255(pix_r * tint_r);
+    uint32_t g = div255(pix_g * tint_g);
+    uint32_t b = div255(pix_b * tint_b);
+
+    return (pixel & 0xFF000000u) | (r << 16) | (g << 8) | b;
 }
 
-void fb_blit(int x, int y, struct image *restrict src, bool use_src_alpha, color_t tint)
+void fb_blit(int x, int y, const struct image *src, bool use_src_alpha, color_t tint)
 {
     int src_x = 0;
     int src_y = 0;
