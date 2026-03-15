@@ -127,13 +127,11 @@ static void update_at_center(struct ghost *g, const struct board *board,
 
     enum pathfinder_flags flags = ghost_pf_flags(g->mode);
     dir_t next;
-    if (g->mode == GHOST_EYES)
-        next = board_find_path(board, g->tile, spawn, flags);
-    else if (g->mode == GHOST_EXITING)
-        next = board_find_path(board, g->tile, exit, flags);
-    else
-        next = pick_dir(g, board);
-
+    switch (g->mode) {
+        case GHOST_EYES:    next = board_find_path(board, g->tile, spawn, flags); break;
+        case GHOST_EXITING: next = board_find_path(board, g->tile, exit, flags);  break;
+        default:            next = pick_dir(g, board);                            break;
+    }
     if (next != DIR_NONE) g->dir = next;
 }
 
@@ -172,12 +170,9 @@ static void ghost_update(struct ghost *g, const struct board *board,
     uint32_t moved = 0;
 
     if (g->mode == GHOST_RESPAWN_WAIT) {
-        if (dt_ms >= g->respawn_ms) {
-            g->respawn_ms = 0;
+        tick_down(&g->respawn_ms, dt_ms);
+        if (g->respawn_ms == 0)
             g->mode = GHOST_EXITING;
-        } else {
-            g->respawn_ms -= dt_ms;
-        }
     }
 
     if (grid_aligned_px(g->pos, LEVEL_TILE))
@@ -251,24 +246,17 @@ void ghosts_step(struct ghosts *self, const struct board *board,
 
 int ghosts_collide_pacman(struct ghosts *self, vec_t pac_pos)
 {
+    int eaten = 0;
     for (int i = 0; i < GHOST_COUNT; i++) {
         struct ghost *g = &self->entries[i];
         if (!ghost_overlaps_pacman(g, pac_pos))
             continue;
         if (g->mode == GHOST_NORMAL || g->mode == GHOST_EXITING)
             return -1;
-    }
-
-    int eaten = 0;
-    for (int i = 0; i < GHOST_COUNT; i++) {
-        struct ghost *g = &self->entries[i];
-        if (!ghost_overlaps_pacman(g, pac_pos))
-            continue;
         if (g->mode == GHOST_FRIGHTENED) {
             ghost_set_eaten(g);
             eaten++;
         }
     }
-
     return eaten;
 }

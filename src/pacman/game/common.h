@@ -90,3 +90,10 @@ static inline bool grid_overlap_wrap_px(vec_t a, vec_t b, vec_t sz, int half)
     if (dy > sz.y / 2) dy = sz.y - dy;
     return dx <= half && dy <= half;
 }
+
+/* ---- timer helpers ---- */
+
+static inline void tick_down(uint32_t *t, uint32_t dt)
+{
+    *t = (*t > dt) ? *t - dt : 0;
+}

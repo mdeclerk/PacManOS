@@ -63,13 +63,3 @@ void pacman_step(struct pacman *self, const struct board *board, uint32_t step_m
 
     grid_advance_anim(&self->anim_accum_px, &self->anim_phase, moved, LEVEL_TILE / 4);
 }
-
-vec_t pacman_tile(const struct pacman *self)
-{
-    return self->tile;
-}
-
-vec_t pacman_pos(const struct pacman *self)
-{
-    return self->pos;
-}

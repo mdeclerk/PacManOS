@@ -90,21 +90,21 @@ static void render_board(const struct board *board, vec_t origin)
         }
 }
 
-static void render_items(const struct items *items, uint32_t frame, vec_t origin)
+static void render_items(const struct game *game)
 {
-    int ox = origin.x;
-    int oy = origin.y;
+    int ox = game->board_origin.x;
+    int oy = game->board_origin.y;
 
     for (int r = 0; r < LEVEL_ROWS; r++)
         for (int c = 0; c < LEVEL_COLS; c++) {
-            uint8_t item = items->cells[r][c];
+            uint8_t item = game->items.cells[r][c];
             if (item == ITEM_DOT) {
                 struct image fb = { dot_spr, DOT_SIZE, DOT_SIZE, DOT_SIZE };
                 fb_blit(ox + c * LEVEL_TILE + (LEVEL_TILE - DOT_SIZE) / 2,
                         oy + r * LEVEL_TILE + (LEVEL_TILE - DOT_SIZE) / 2,
                         &fb, true, FB_WHITE);
             } else if (item == ITEM_POWER) {
-                if ((frame / (POWER_FLASH_PERIOD / 2)) % 2) continue;
+                if ((game->frame / (POWER_FLASH_PERIOD / 2)) % 2) continue;
                 struct image fb = { power_spr, POWER_SIZE, POWER_SIZE, POWER_SIZE };
                 fb_blit(ox + c * LEVEL_TILE + (LEVEL_TILE - POWER_SIZE) / 2,
                         oy + r * LEVEL_TILE + (LEVEL_TILE - POWER_SIZE) / 2,
@@ -145,23 +145,25 @@ static void render_ghost(const struct ghost *g, bool blink_normal, vec_t origin)
             origin.y + g->pos.y - GHOST_OFFSET, &fb, true, FB_WHITE);
 }
 
-static void render_ghosts(const struct ghosts *ghosts, uint32_t power_ms, vec_t origin)
+static void render_ghosts(const struct game *game)
 {
-    bool blink = power_ms > 0 && power_ms <= BLINK_MS
-                 && ((power_ms / BLINK_STEP_MS) & 1u);
+    bool blink = game->power_ms > 0 && game->power_ms <= BLINK_MS
+                 && ((game->power_ms / BLINK_STEP_MS) & 1u);
     for (int i = 0; i < GHOST_COUNT; i++)
-        render_ghost(&ghosts->entries[i], blink, origin);
+        render_ghost(&game->ghosts.entries[i], blink, game->board_origin);
 }
 
-static void draw_centered(const char *text, int cx, int cy, color_t c)
+static void draw_text_centered(const char *text, int cx, int cy, color_t c)
 {
     int w, h;
     fb_get_text_size(text, &w, &h);
     fb_puts(cx - w / 2, cy - h / 2, text, c, FB_NONE);
 }
 
-static void render_hud(const struct game *game, vec_t bo, vec_t bs, uint32_t fps)
+static void render_hud(const struct game *game, uint32_t fps)
 {
+    vec_t bo = game->board_origin;
+    vec_t bs = LEVEL_PIXEL_DIMS;
     int hx = bo.x + bs.x + 24;
     int hy = bo.y + HUD_PAD;
     char buf[64];
@@ -182,16 +184,16 @@ static void render_hud(const struct game *game, vec_t bo, vec_t bs, uint32_t fps
     switch (game->state) {
         case STATE_READY:
             if (!((timer_get_ticks() * timer_get_interval_ms() / READY_BLINK_MS) & 1u))
-                draw_centered("READY?", cx, cy, FB_YELLOW);
+                draw_text_centered("READY?", cx, cy, FB_YELLOW);
             break;
         case STATE_ROUND_RESET:
-            draw_centered("READY", cx, cy, FB_YELLOW);
+            draw_text_centered("READY", cx, cy, FB_YELLOW);
             break;
         case STATE_WIN:
-            draw_centered("YOU WIN", cx, cy, FB_GREEN);
+            draw_text_centered("YOU WIN", cx, cy, FB_GREEN);
             break;
         case STATE_GAME_OVER:
-            draw_centered("GAME OVER", cx, cy, FB_RED);
+            draw_text_centered("GAME OVER", cx, cy, FB_RED);
             break;
         default:
             break;
@@ -215,11 +217,9 @@ void renderer_draw(const struct game *game, uint32_t fps)
 {
     fb_clear(FB_BLACK);
 
-    vec_t bo = game->board_origin;
-
-    render_board(&game->board, bo);
-    render_items(&game->items, game->frame, bo);
-    render_pacman(&game->pacman, bo);
-    render_ghosts(&game->ghosts, game->power_ms, bo);
-    render_hud(game, bo, LEVEL_PIXEL_DIMS, fps);
+    render_board(&game->board, game->board_origin);
+    render_items(game);
+    render_pacman(&game->pacman, game->board_origin);
+    render_ghosts(game);
+    render_hud(game, fps);
 }

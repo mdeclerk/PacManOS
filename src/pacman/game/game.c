@@ -10,11 +10,6 @@
 #define RESET_DELAY_MS 1200u
 #define END_SCREEN_MS  2200u
 
-static void tick_down(uint32_t *t, uint32_t dt)
-{
-    *t = (*t > dt) ? *t - dt : 0;
-}
-
 static void consume_item(struct game *self, vec_t tile)
 {
     enum item_kind k = items_consume(&self->items, tile);
@@ -34,7 +29,7 @@ static void reset_round(struct game *self)
     ghosts_reset(&self->ghosts, &self->board);
     self->power_ms = 0;
     self->ghost_chain = 0;
-    consume_item(self, pacman_tile(&self->pacman));
+    consume_item(self, self->pacman.tile);
 }
 
 static void kill_pacman(struct game *self)
@@ -55,7 +50,7 @@ static void kill_pacman(struct game *self)
 
 static void handle_collisions(struct game *self)
 {
-    int collisions = ghosts_collide_pacman(&self->ghosts, pacman_pos(&self->pacman));
+    int collisions = ghosts_collide_pacman(&self->ghosts, self->pacman.pos);
     if (collisions < 0) {
         kill_pacman(self);
         return;
@@ -70,16 +65,13 @@ static void handle_collisions(struct game *self)
 static void update_running(struct game *self, uint32_t dt)
 {
     if (self->power_ms) {
-        if (self->power_ms > dt)
-            self->power_ms -= dt;
-        else {
-            self->power_ms = 0;
+        tick_down(&self->power_ms, dt);
+        if (self->power_ms == 0)
             ghosts_set_mode(&self->ghosts, GHOST_FRIGHTENED, GHOST_NORMAL);
-        }
     }
 
     pacman_step(&self->pacman, &self->board, dt);
-    consume_item(self, pacman_tile(&self->pacman));
+    consume_item(self, self->pacman.tile);
 
     if (items_remaining(&self->items) == 0) {
         self->state = STATE_WIN;

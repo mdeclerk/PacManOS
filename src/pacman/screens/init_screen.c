@@ -1,5 +1,4 @@
 #include "pacman/screens/screens.h"
-#include "pacman/assets/assets.h"
 #include "engineos/include/timer.h"
 
 #define BLINK_MS 500u
@@ -20,19 +19,11 @@ static void draw(uint32_t fps)
 {
     (void)fps;
     fb_clear(FB_BLACK);
-
-    struct image splash = assets.splash;
-    fb_blit((FB_WIDTH - splash.width) / 2,
-            (FB_HEIGHT - splash.height) / 3,
-            &splash, true, FB_WHITE);
+    draw_splash();
 
     uint32_t phase = timer_get_ticks() * timer_get_interval_ms() / BLINK_MS;
-    if (!(phase & 1u)) {
-        int w, h;
-        fb_get_text_size("PRESS ANY KEY TO START", &w, &h);
-        fb_puts((FB_WIDTH - w) / 2, FB_HEIGHT * 3 / 4,
-                "PRESS ANY KEY TO START", FB_YELLOW, FB_NONE);
-    }
+    if (!(phase & 1u))
+        draw_hcentered(FB_HEIGHT * 3 / 4, "PRESS ANY KEY TO START", FB_YELLOW);
 }
 
 struct screen init_screen = {

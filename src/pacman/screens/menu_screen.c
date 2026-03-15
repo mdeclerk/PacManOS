@@ -1,5 +1,4 @@
 #include "pacman/screens/screens.h"
-#include "pacman/assets/assets.h"
 #include "stdlib/stdio.h"
 
 static int selected_level;
@@ -24,21 +23,11 @@ static void on_event(const struct event *event)
     }
 }
 
-static void draw_hcentered(int y, const char *text, color_t color)
-{
-    int w, h;
-    fb_get_text_size(text, &w, &h);
-    fb_puts((FB_WIDTH - w) / 2, y, text, color, FB_NONE);
-}
-
 static void draw(uint32_t fps)
 {
     (void)fps;
     fb_clear(FB_BLACK);
-
-    struct image splash = assets.splash;
-    fb_blit((FB_WIDTH - splash.width) / 2, (FB_HEIGHT - splash.height) / 3,
-            &splash, true, FB_WHITE);
+    draw_splash();
 
     int count = assets.levels->header.count;
     int tw, th;

@@ -23,5 +23,3 @@ struct pacman {
 void  pacman_init(struct pacman *self, int level);
 void  pacman_queue_dir(struct pacman *self, dir_t dir);
 void  pacman_step(struct pacman *self, const struct board *board, uint32_t step_ms);
-vec_t pacman_tile(const struct pacman *self);
-vec_t pacman_pos(const struct pacman *self);
