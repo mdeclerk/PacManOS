@@ -1,6 +1,5 @@
 #include "pacman/screens/screens.h"
 #include "pacman/assets/assets.h"
-#include "pacman/game/game.h"
 #include "stdlib/stdio.h"
 
 static int selected;
@@ -19,8 +18,7 @@ static void on_event(const struct event *event)
             selected = (selected + 1) % count;
             break;
         case KEYCODE_ENTER:
-            game_start(selected);
-            screen_set_active(&game_screen);
+            game_screen_start(selected);
             break;
         default: break;
     }

@@ -6,42 +6,17 @@
 #include "engineos/include/log.h"
 #include "stdlib/string.h"
 
-#define BLINK_MS         3000u
-#define BLINK_STEP_MS     200u
-#define ATLAS_ROW_FRIGHT    4
-#define ATLAS_ROW_EYES      5
-#define ATLAS_WALK_STRIDE   4
 #define COLLISION_HALF ((PACMAN_SPRITE_SZ + GHOST_SPRITE_SZ) / 4)
 
-static struct ghost {
-    vec_t tile;
-    vec_t pos;
-    dir_t dir;
-    ghost_mode_t mode;
-    uint32_t rng;
-    uint32_t move_accum_ms;
-    uint32_t anim_accum_px;
-    uint32_t respawn_ms;
-    uint8_t anim_phase;
-    int id;
-} ghosts[GHOST_COUNT];
-
-static struct {
-    vec_t spawn;
-    vec_t gate_exit_tile;
-    uint8_t gate_cells[LEVEL_ROWS][LEVEL_COLS];
-} ghost_map;
-
-static struct image atlas;
-
-static bool is_gate_tile(vec_t tile)
+static bool is_gate_tile(const struct ghost_map *map, vec_t tile)
 {
     int r = grid_wrap(tile.row, LEVEL_ROWS);
     int c = grid_wrap(tile.col, LEVEL_COLS);
-    return ghost_map.gate_cells[r][c] != 0;
+    return map->gate_cells[r][c] != 0;
 }
 
-static void parse_level_topology(int level, const struct levels_entry *entry)
+static void parse_level_topology(struct ghost_map *map, const struct board *board,
+                                 int level, const struct levels_entry *entry)
 {
     vec_t spawn = { 0 };
     int spawn_count = 0;
@@ -51,7 +26,7 @@ static void parse_level_topology(int level, const struct levels_entry *entry)
     int gate_max_col = -1;
     int gate_count = 0;
 
-    memset(ghost_map.gate_cells, 0, sizeof(ghost_map.gate_cells));
+    memset(map->gate_cells, 0, sizeof(map->gate_cells));
 
     for (int r = 0; r < LEVEL_ROWS; r++)
         for (int c = 0; c < LEVEL_COLS; c++) {
@@ -61,7 +36,7 @@ static void parse_level_topology(int level, const struct levels_entry *entry)
                 spawn_count++;
             }
             if (t == LEVEL_TILE_GHOST_GATE) {
-                ghost_map.gate_cells[r][c] = 1;
+                map->gate_cells[r][c] = 1;
                 if (gate_row < 0)
                     gate_row = r;
                 else if (gate_row != r)
@@ -82,11 +57,11 @@ static void parse_level_topology(int level, const struct levels_entry *entry)
     int gate_center = gate_min_col + gate_span / 2;
     vec_t exit = { .row = grid_wrap(gate_row - 1, LEVEL_ROWS), .col = gate_center };
 
-    if (!board_walkable_ghost(exit) || is_gate_tile(exit))
+    if (!board_walkable_ghost(board, exit) || is_gate_tile(map, exit))
         PANIC("level %d has invalid ghost gate exit", level);
 
-    ghost_map.spawn = spawn;
-    ghost_map.gate_exit_tile = exit;
+    map->spawn = spawn;
+    map->gate_exit_tile = exit;
 }
 
 static uint32_t rng_next(struct ghost *g)
@@ -95,25 +70,27 @@ static uint32_t rng_next(struct ghost *g)
     return g->rng;
 }
 
-static bool can_step(ghost_mode_t mode, vec_t tile)
+static bool can_step(const struct board *board, const struct ghost_map *map,
+                     ghost_mode_t mode, vec_t tile)
 {
-    if (!board_walkable_ghost(tile))
+    if (!board_walkable_ghost(board, tile))
         return false;
 
-    if (!is_gate_tile(tile))
+    if (!is_gate_tile(map, tile))
         return true;
 
     return mode == GHOST_EYES || mode == GHOST_EXITING;
 }
 
-static uint32_t step_ms(ghost_mode_t mode)
+static uint32_t ghost_step_ms(ghost_mode_t mode)
 {
     return mode == GHOST_FRIGHTENED ? GHOST_STEP_FRIGHTENED
          : mode == GHOST_EYES       ? GHOST_STEP_EYES
          :                            GHOST_STEP_NORMAL;
 }
 
-static dir_t bfs_to(vec_t start, vec_t target, ghost_mode_t mode)
+static dir_t bfs_to(const struct board *board, const struct ghost_map *map,
+                    vec_t start, vec_t target, ghost_mode_t mode)
 {
     bool visited[LEVEL_ROWS][LEVEL_COLS];
     int8_t first_dir[LEVEL_ROWS][LEVEL_COLS];
@@ -141,7 +118,7 @@ static dir_t bfs_to(vec_t start, vec_t target, ghost_mode_t mode)
             vec_t next = grid_step((vec_t){ .row = r, .col = c }, (dir_t)d, LEVEL_TILE_DIMS);
             int nr = next.row;
             int nc = next.col;
-            if (visited[nr][nc] || !can_step(mode, next)) continue;
+            if (visited[nr][nc] || !can_step(board, map, mode, next)) continue;
             visited[nr][nc] = true;
             first_dir[nr][nc] = (first_dir[r][c] < 0) ? (int8_t)d : first_dir[r][c];
             if (nr == tr && nc == tc) return (dir_t)first_dir[nr][nc];
@@ -154,7 +131,8 @@ static dir_t bfs_to(vec_t start, vec_t target, ghost_mode_t mode)
     return DIR_NONE;
 }
 
-static dir_t pick_dir(struct ghost *g)
+static dir_t pick_dir(struct ghost *g, const struct board *board,
+                      const struct ghost_map *map)
 {
     dir_t opts[4], fallback = DIR_NONE;
     int n = 0, total = 0;
@@ -164,7 +142,7 @@ static dir_t pick_dir(struct ghost *g)
     for (int d = 0; d < 4; d++) {
         dir_t dir = (dir_t)d;
         vec_t next = grid_step(g->tile, dir, LEVEL_TILE_DIMS);
-        if (!can_step(g->mode, next)) continue;
+        if (!can_step(board, map, g->mode, next)) continue;
         total++;
         if (dir == g->dir) can_continue = true;
         if (dir == rev) {
@@ -179,10 +157,11 @@ static dir_t pick_dir(struct ghost *g)
     return opts[rng_next(g) % (uint32_t)n];
 }
 
-static void update_at_center(struct ghost *g, bool power_active)
+static void update_at_center(struct ghost *g, const struct board *board,
+                             const struct ghost_map *map, bool power_active)
 {
-    vec_t spawn = ghost_map.spawn;
-    vec_t exit = ghost_map.gate_exit_tile;
+    vec_t spawn = map->spawn;
+    vec_t exit = map->gate_exit_tile;
 
     if (g->mode == GHOST_EYES && g->tile.row == spawn.row && g->tile.col == spawn.col) {
         g->mode = GHOST_RESPAWN_WAIT;
@@ -196,21 +175,22 @@ static void update_at_center(struct ghost *g, bool power_active)
 
     dir_t next;
     if (g->mode == GHOST_EYES)
-        next = bfs_to(g->tile, spawn, GHOST_EYES);
+        next = bfs_to(board, map, g->tile, spawn, GHOST_EYES);
     else if (g->mode == GHOST_EXITING)
-        next = bfs_to(g->tile, exit, GHOST_EXITING);
+        next = bfs_to(board, map, g->tile, exit, GHOST_EXITING);
     else
-        next = pick_dir(g);
+        next = pick_dir(g, board, map);
 
     if (next != DIR_NONE) g->dir = next;
 }
 
-static void ghost_reset(struct ghost *g)
+static void ghost_reset_one(struct ghost *g, const struct board *board,
+                            const struct ghost_map *map)
 {
     static const int dr[] = { 0, -1, 0, 0 };
     static const int dc[] = { 0, 0, -1, 1 };
 
-    vec_t spawn = ghost_map.spawn;
+    vec_t spawn = map->spawn;
     int id = g->id;
     uint32_t rng = g->rng;
 
@@ -218,7 +198,7 @@ static void ghost_reset(struct ghost *g)
         .row = grid_wrap(spawn.row + dr[id % 4], LEVEL_ROWS),
         .col = grid_wrap(spawn.col + dc[id % 4], LEVEL_COLS),
     };
-    if (!can_step(GHOST_EXITING, pos))
+    if (!can_step(board, map, GHOST_EXITING, pos))
         pos = spawn;
 
     *g = (struct ghost){
@@ -232,7 +212,9 @@ static void ghost_reset(struct ghost *g)
     };
 }
 
-static void ghost_update(struct ghost *g, uint32_t dt_ms, bool power_active)
+static void ghost_update(struct ghost *g, const struct board *board,
+                         const struct ghost_map *map,
+                         uint32_t dt_ms, bool power_active)
 {
     uint32_t moved = 0;
 
@@ -246,16 +228,16 @@ static void ghost_update(struct ghost *g, uint32_t dt_ms, bool power_active)
     }
 
     if (grid_aligned_px(g->pos, LEVEL_TILE))
-        update_at_center(g, power_active);
+        update_at_center(g, board, map, power_active);
 
     g->move_accum_ms += dt_ms * LEVEL_TILE;
     for (;;) {
-        uint32_t ms = step_ms(g->mode);
+        uint32_t ms = ghost_step_ms(g->mode);
         if (g->move_accum_ms < ms) break;
         g->move_accum_ms -= ms;
 
         if (grid_aligned_px(g->pos, LEVEL_TILE))
-            update_at_center(g, power_active);
+            update_at_center(g, board, map, power_active);
         if (g->dir == DIR_NONE) break;
 
         grid_move_px(&g->pos, g->dir, LEVEL_PIXEL_DIMS);
@@ -264,26 +246,6 @@ static void ghost_update(struct ghost *g, uint32_t dt_ms, bool power_active)
     }
 
     grid_advance_anim(&g->anim_accum_px, &g->anim_phase, moved, (LEVEL_TILE * 2) / 3);
-}
-
-static void ghost_render(const struct ghost *g, bool blink_normal, vec_t origin)
-{
-    bool eyes = g->mode == GHOST_EYES || g->mode == GHOST_RESPAWN_WAIT;
-    int row = eyes ? ATLAS_ROW_EYES
-            : (g->mode == GHOST_FRIGHTENED && !blink_normal) ? ATLAS_ROW_FRIGHT
-            : g->id % GHOST_COUNT;
-    static const int dir_col[] = { 2, 3, 0, 1, 1 };
-    int col = dir_col[g->dir];
-    if (!eyes && (g->anim_phase & 1))
-        col += ATLAS_WALK_STRIDE;
-
-    struct image fb = fb_subrect(&atlas,
-                                 col * GHOST_SPRITE_SZ,
-                                 row * GHOST_SPRITE_SZ,
-                                 GHOST_SPRITE_SZ,
-                                 GHOST_SPRITE_SZ);
-    fb_blit(origin.x + g->pos.x - GHOST_OFFSET,
-            origin.y + g->pos.y - GHOST_OFFSET, &fb, true, FB_WHITE);
 }
 
 static void ghost_set_eaten(struct ghost *g)
@@ -295,56 +257,50 @@ static void ghost_set_eaten(struct ghost *g)
     g->pos.y = g->tile.row * LEVEL_TILE;
 }
 
-static bool ghost_overlaps_pacman(const struct ghost *g, vec_t pacman_pos)
+static bool ghost_overlaps_pacman(const struct ghost *g, vec_t pac_pos)
 {
-    return grid_overlap_wrap_px(g->pos, pacman_pos, LEVEL_PIXEL_DIMS, COLLISION_HALF);
+    return grid_overlap_wrap_px(g->pos, pac_pos, LEVEL_PIXEL_DIMS, COLLISION_HALF);
 }
 
-void ghosts_init(uint32_t seed, int level)
+void ghosts_init(struct ghosts *self, const struct board *board,
+                 uint32_t seed, int level)
 {
-    atlas = assets.ghosts;
     const struct levels_entry *entry = &assets.levels->entries[level];
-    parse_level_topology(level, entry);
 
-    memset(&ghosts, 0, sizeof(ghosts));
+    memset(self, 0, sizeof(*self));
+    parse_level_topology(&self->map, board, level, entry);
+
     for (int i = 0; i < GHOST_COUNT; i++) {
-        ghosts[i].id = i;
-        ghosts[i].rng = seed ^ (0x9E3779B9u * (uint32_t)(i + 1));
+        self->entries[i].id = i;
+        self->entries[i].rng = seed ^ (0x9E3779B9u * (uint32_t)(i + 1));
     }
 }
 
-void ghosts_reset(void)
+void ghosts_reset(struct ghosts *self, const struct board *board)
 {
     for (int i = 0; i < GHOST_COUNT; i++)
-        ghost_reset(&ghosts[i]);
+        ghost_reset_one(&self->entries[i], board, &self->map);
 }
 
-void ghosts_set_mode(ghost_mode_t from, ghost_mode_t to)
+void ghosts_set_mode(struct ghosts *self, ghost_mode_t from, ghost_mode_t to)
 {
     for (int i = 0; i < GHOST_COUNT; i++)
-        if (ghosts[i].mode == from)
-            ghosts[i].mode = to;
+        if (self->entries[i].mode == from)
+            self->entries[i].mode = to;
 }
 
-void ghosts_step(uint32_t step_ms, bool power_active)
+void ghosts_step(struct ghosts *self, const struct board *board,
+                 uint32_t step_ms, bool power_active)
 {
     for (int i = 0; i < GHOST_COUNT; i++)
-        ghost_update(&ghosts[i], step_ms, power_active);
+        ghost_update(&self->entries[i], board, &self->map, step_ms, power_active);
 }
 
-void ghosts_render(uint32_t power_ms_left, vec_t origin)
-{
-    bool blink = power_ms_left > 0 && power_ms_left <= BLINK_MS
-                 && ((power_ms_left / BLINK_STEP_MS) & 1u);
-    for (int i = 0; i < GHOST_COUNT; i++)
-        ghost_render(&ghosts[i], blink, origin);
-}
-
-int ghosts_collide_pacman(vec_t pacman_pos)
+int ghosts_collide_pacman(struct ghosts *self, vec_t pac_pos)
 {
     for (int i = 0; i < GHOST_COUNT; i++) {
-        struct ghost *g = &ghosts[i];
-        if (!ghost_overlaps_pacman(g, pacman_pos))
+        struct ghost *g = &self->entries[i];
+        if (!ghost_overlaps_pacman(g, pac_pos))
             continue;
         if (g->mode == GHOST_NORMAL || g->mode == GHOST_EXITING)
             return -1;
@@ -352,8 +308,8 @@ int ghosts_collide_pacman(vec_t pacman_pos)
 
     int eaten = 0;
     for (int i = 0; i < GHOST_COUNT; i++) {
-        struct ghost *g = &ghosts[i];
-        if (!ghost_overlaps_pacman(g, pacman_pos))
+        struct ghost *g = &self->entries[i];
+        if (!ghost_overlaps_pacman(g, pac_pos))
             continue;
         if (g->mode == GHOST_FRIGHTENED) {
             ghost_set_eaten(g);

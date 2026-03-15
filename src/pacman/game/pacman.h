@@ -8,9 +8,20 @@
 #define PACMAN_SPRITE_SZ 32
 #define PACMAN_OFFSET    ((PACMAN_SPRITE_SZ - LEVEL_TILE) / 2)
 
-void  pacman_init(int level);
-void  pacman_queue_dir(dir_t dir);
-void  pacman_step(uint32_t step_ms);
-void  pacman_render(vec_t origin);
-vec_t pacman_tile(void);
-vec_t pacman_pos(void);
+struct board;
+
+struct pacman {
+    vec_t tile;
+    vec_t pos;
+    dir_t dir;
+    dir_t queued_dir;
+    uint8_t anim_phase;
+    uint32_t move_accum_ms;
+    uint32_t anim_accum_px;
+};
+
+void  pacman_init(struct pacman *self, int level);
+void  pacman_queue_dir(struct pacman *self, dir_t dir);
+void  pacman_step(struct pacman *self, const struct board *board, uint32_t step_ms);
+vec_t pacman_tile(const struct pacman *self);
+vec_t pacman_pos(const struct pacman *self);

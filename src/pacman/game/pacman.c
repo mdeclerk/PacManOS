@@ -4,32 +4,21 @@
 #include "pacman/game/board.h"
 #include "engineos/include/log.h"
 
-
-static struct pacman {
-    vec_t tile;
-    vec_t pos;
-    dir_t dir;
-    dir_t queued_dir;
-    uint8_t anim_phase;
-    uint32_t move_accum_ms;
-    uint32_t anim_accum_px;
-} pacman;
-
-static bool can_go(vec_t tile, dir_t dir)
+static bool can_go(const struct board *board, vec_t tile, dir_t dir)
 {
     vec_t next = grid_step(tile, dir, LEVEL_TILE_DIMS);
-    return board_walkable_pacman(next);
+    return board_walkable_pacman(board, next);
 }
 
-static void try_turn(void)
+static void try_turn(struct pacman *self, const struct board *board)
 {
-    if (pacman.queued_dir != DIR_NONE && can_go(pacman.tile, pacman.queued_dir))
-        pacman.dir = pacman.queued_dir;
-    if (pacman.dir != DIR_NONE && !can_go(pacman.tile, pacman.dir))
-        pacman.dir = DIR_NONE;
+    if (self->queued_dir != DIR_NONE && can_go(board, self->tile, self->queued_dir))
+        self->dir = self->queued_dir;
+    if (self->dir != DIR_NONE && !can_go(board, self->tile, self->dir))
+        self->dir = DIR_NONE;
 }
 
-void pacman_init(int level)
+void pacman_init(struct pacman *self, int level)
 {
     const struct levels_entry *entry = &assets.levels->entries[level];
     vec_t spawn = { 0 };
@@ -45,54 +34,42 @@ void pacman_init(int level)
     if (spawn_count != 1)
         PANIC("level %d must have exactly one pacman spawn", level);
 
-    pacman = (struct pacman){
+    *self = (struct pacman){
         .tile = spawn,
         .pos = { .x = spawn.col * LEVEL_TILE, .y = spawn.row * LEVEL_TILE },
     };
 }
 
-void pacman_queue_dir(dir_t dir)
+void pacman_queue_dir(struct pacman *self, dir_t dir)
 {
-    pacman.queued_dir = dir;
+    self->queued_dir = dir;
 }
 
-void pacman_step(uint32_t step_ms)
+void pacman_step(struct pacman *self, const struct board *board, uint32_t step_ms)
 {
     uint32_t moved = 0;
-    pacman.move_accum_ms += step_ms * LEVEL_TILE;
-    uint32_t pixels = pacman.move_accum_ms / PACMAN_STEP_MS;
-    pacman.move_accum_ms %= PACMAN_STEP_MS;
+    self->move_accum_ms += step_ms * LEVEL_TILE;
+    uint32_t pixels = self->move_accum_ms / PACMAN_STEP_MS;
+    self->move_accum_ms %= PACMAN_STEP_MS;
 
     for (uint32_t i = 0; i < pixels; i++) {
-        if (grid_aligned_px(pacman.pos, LEVEL_TILE))
-            try_turn();
-        if (pacman.dir == DIR_NONE) break;
-        grid_move_px(&pacman.pos, pacman.dir, LEVEL_PIXEL_DIMS);
-        pacman.tile = grid_px_to_tile(pacman.pos, LEVEL_TILE, LEVEL_TILE_DIMS);
+        if (grid_aligned_px(self->pos, LEVEL_TILE))
+            try_turn(self, board);
+        if (self->dir == DIR_NONE) break;
+        grid_move_px(&self->pos, self->dir, LEVEL_PIXEL_DIMS);
+        self->tile = grid_px_to_tile(self->pos, LEVEL_TILE, LEVEL_TILE_DIMS);
         moved++;
     }
 
-    grid_advance_anim(&pacman.anim_accum_px, &pacman.anim_phase, moved, LEVEL_TILE / 4);
+    grid_advance_anim(&self->anim_accum_px, &self->anim_phase, moved, LEVEL_TILE / 4);
 }
 
-void pacman_render(vec_t origin)
+vec_t pacman_tile(const struct pacman *self)
 {
-    dir_t dir = (pacman.dir != DIR_NONE) ? pacman.dir : pacman.queued_dir;
-    int col = pacman.anim_phase & 3;
-    struct image fb = fb_subrect(&assets.pacman,
-                                 col * PACMAN_SPRITE_SZ,
-                                 dir_to_row(dir) * PACMAN_SPRITE_SZ,
-                                 PACMAN_SPRITE_SZ, PACMAN_SPRITE_SZ);
-    fb_blit(origin.x + pacman.pos.x - PACMAN_OFFSET,
-            origin.y + pacman.pos.y - PACMAN_OFFSET, &fb, true, FB_WHITE);
+    return self->tile;
 }
 
-vec_t pacman_tile(void)
+vec_t pacman_pos(const struct pacman *self)
 {
-    return pacman.tile;
-}
-
-vec_t pacman_pos(void)
-{
-    return pacman.pos;
+    return self->pos;
 }
