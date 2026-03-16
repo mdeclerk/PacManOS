@@ -2,10 +2,11 @@
 
 #include "stddef.h"
 
-void *memset(void *dst, int value, size_t size);
-void *memcpy(void *restrict dst, const void *restrict src, size_t size);
-int memcmp(const void *s1, const void *s2, size_t n);
-int strncmp(const char *a, const char *b, size_t n);
-size_t strnlen(const char *str, size_t n);
-char *strncpy(char *restrict dst, const char *restrict src, size_t n);
+#define memset  __builtin_memset
+#define memcpy  __builtin_memcpy
+#define memcmp  __builtin_memcmp
+#define strncmp __builtin_strncmp
+#define strnlen __builtin_strnlen
+#define strncpy __builtin_strncpy
+
 bool strneq(const char *a, const char *b, size_t n);

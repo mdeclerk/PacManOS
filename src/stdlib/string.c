@@ -1,4 +1,4 @@
-#include "string.h"
+#include "stddef.h"
 
 void *memset(void *dst, int value, size_t size)
 {
@@ -86,13 +86,13 @@ bool strneq(const char *a, const char *b, size_t n)
         return false;
 
     cap = (n == (size_t)-1) ? n : n + 1u;
-    a_len = strnlen(a, cap);
-    b_len = strnlen(b, cap);
+    a_len = __builtin_strnlen(a, cap);
+    b_len = __builtin_strnlen(b, cap);
 
     if (a_len == cap || b_len == cap)
         return false;
     if (a_len != b_len)
         return false;
 
-    return strncmp(a, b, a_len) == 0;
+    return __builtin_strncmp(a, b, a_len) == 0;
 }
