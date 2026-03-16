@@ -1,41 +1,5 @@
 #include "stddef.h"
 
-void *memset(void *dst, int value, size_t size)
-{
-    unsigned char *p = (unsigned char *)dst;
-    unsigned char byte = (unsigned char)value;
-
-    for (size_t i = 0; i < size; i++)
-        p[i] = byte;
-
-    return dst;
-}
-
-void *memcpy(void *restrict dst, const void *restrict src, size_t size)
-{
-    unsigned char *restrict d = (unsigned char *)dst;
-    const unsigned char *restrict s = (const unsigned char *)src;
-
-    for (size_t i = 0; i < size; i++)
-        d[i] = s[i];
-
-    return dst;
-}
-
-int memcmp(const void *s1, const void *s2, size_t n)
-{
-    const unsigned char *p1 = (const unsigned char *)s1;
-    const unsigned char *p2 = (const unsigned char *)s2;
-
-    for (size_t i = 0; i < n; i++) {
-        if (p1[i] != p2[i]) {
-            return p1[i] - p2[i];
-        }
-    }
-
-    return 0;
-}
-
 int strncmp(const char *a, const char *b, size_t n)
 {
     size_t i = 0;
