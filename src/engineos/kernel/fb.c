@@ -45,11 +45,6 @@ void fb_show(void)
     memcpy(frontbuffer, backbuffer, FB_SIZE);
 }
 
-static inline uint32_t div255(uint32_t x)
-{
-    return ((x + 0x80u) + ((x + 0x80u) >> 8)) >> 8;
-}
-
 static inline color_t alpha_blend(color_t src, color_t dst, uint8_t alpha)
 {
     if (alpha == 0)
@@ -75,6 +70,11 @@ static inline color_t alpha_blend(color_t src, color_t dst, uint8_t alpha)
     return rb | g;
 }
 
+static inline uint32_t div255(uint32_t x)
+{
+    return ((x + 0x80u) + ((x + 0x80u) >> 8)) >> 8;
+}
+
 static inline color_t tint_color(color_t pixel, color_t tint)
 {
     uint32_t tint_r = (tint >> 16) & 0xFFu;
@@ -92,15 +92,49 @@ static inline color_t tint_color(color_t pixel, color_t tint)
     return (pixel & 0xFF000000u) | (r << 16) | (g << 8) | b;
 }
 
-void fb_blit(int x, int y, const struct image *src, bool use_src_alpha, color_t tint)
+static inline void blit_copy(color_t *restrict dst, const color_t *restrict src,
+    int w, int h, int dst_stride, int src_stride)
+{
+    for (int row = 0; row < h; row++, dst += dst_stride, src += src_stride)
+        memcpy(dst, src, (size_t)w * sizeof(color_t));
+}
+
+static inline void blit_tint(color_t *restrict dst, const color_t *restrict src,
+    int w, int h, int dst_stride, int src_stride, color_t tint)
+{
+    for (int row = 0; row < h; row++, dst += dst_stride, src += src_stride)
+        for (int col = 0; col < w; col++)
+            dst[col] = tint_color(src[col], tint);
+}
+
+static inline void blit_alpha(color_t *restrict dst, const color_t *restrict src,
+    int w, int h, int dst_stride, int src_stride)
+{
+    for (int row = 0; row < h; row++, dst += dst_stride, src += src_stride)
+        for (int col = 0; col < w; col++) {
+            color_t p = src[col];
+            dst[col] = alpha_blend(p, dst[col], (p >> 24) & 0xFFu);
+        }
+}
+
+static inline void blit_tint_alpha(color_t *restrict dst, const color_t *restrict src,
+    int w, int h, int dst_stride, int src_stride, color_t tint)
+{
+    for (int row = 0; row < h; row++, dst += dst_stride, src += src_stride)
+        for (int col = 0; col < w; col++) {
+            color_t p = tint_color(src[col], tint);
+            dst[col] = alpha_blend(p, dst[col], (p >> 24) & 0xFFu);
+        }
+}
+
+void fb_blit(int x, int y, const struct image *img, bool use_src_alpha, color_t tint)
 {
     int src_x = 0;
     int src_y = 0;
     int dst_x = x;
     int dst_y = y;
-    int blit_w = src->width;
-    int blit_h = src->height;
-    bool apply_tint = tint != FB_WHITE;
+    int blit_w = img->width;
+    int blit_h = img->height;
 
     if (dst_x < 0) {
         src_x = -dst_x;
@@ -120,25 +154,15 @@ void fb_blit(int x, int y, const struct image *src, bool use_src_alpha, color_t 
     if (blit_w <= 0 || blit_h <= 0)
         return;
 
-    for (int yy = 0; yy < blit_h; yy++) {
-        color_t *restrict d = &backbuffer[(dst_y + yy) * FB_WIDTH + dst_x];
-        color_t *restrict s = &src->pixels[(src_y + yy) * src->pitch + src_x];
+    bool use_tint = tint != FB_WHITE;
 
-        if (!use_src_alpha && !apply_tint) {
-            memcpy(d, s, (size_t)blit_w * sizeof(color_t));
-            continue;
-        }
+    color_t       *restrict dst = &backbuffer[dst_y * FB_WIDTH + dst_x];
+    const color_t *restrict src = &img->pixels[src_y * img->pitch + src_x];
 
-        for (int xx = 0; xx < blit_w; xx++) {
-            color_t p = apply_tint ? tint_color(s[xx], tint) : s[xx];
-            if (!use_src_alpha) {
-                d[xx] = p;
-                continue;
-            }
-            uint8_t alpha = (p >> 24) & 0xFFu;
-            d[xx] = alpha_blend(p, d[xx], alpha);
-        }
-    }
+    if      ( use_src_alpha &&  use_tint) blit_tint_alpha(dst, src, blit_w, blit_h, FB_WIDTH, img->pitch, tint);
+    else if ( use_src_alpha && !use_tint) blit_alpha     (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch);
+    else if (!use_src_alpha &&  use_tint) blit_tint      (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch, tint);
+    else                                  blit_copy      (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch);
 }
 
 void fb_set_font(const struct font *f)
