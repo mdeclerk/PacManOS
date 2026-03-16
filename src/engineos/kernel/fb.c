@@ -8,6 +8,15 @@
 static color_t *frontbuffer;
 static color_t backbuffer[FB_WIDTH * FB_HEIGHT];
 
+static const struct image backbuffer_image = {
+    .pixels = backbuffer,
+    .pitch  = FB_WIDTH,
+    .width  = FB_WIDTH,
+    .height = FB_HEIGHT,
+};
+
+static const struct image *target = &backbuffer_image;
+
 static struct font font;
 
 void fb_init(void)
@@ -27,17 +36,38 @@ void fb_init(void)
     log("%s: res %ux%u, base %p", __func__, FB_WIDTH, FB_HEIGHT, frontbuffer);
 }
 
+void fb_set_render_target(struct image *rt)
+{
+    target = rt ? rt : &backbuffer_image;
+}
+
 void fb_clear(color_t color)
 {
-    color_t *p = backbuffer;
-    uint32_t n = FB_WIDTH * FB_HEIGHT;
+    color_t *p = target->pixels;
+    int w = target->width;
+    int h = target->height;
+    int stride = target->pitch;
 
-    __asm__ volatile (
-        "cld; rep stosl"
-        : "+D"(p), "+c"(n)
-        : "a"(color)
-        : "memory"
-    );
+    if (stride == w) {
+        uint32_t n = (uint32_t)(w * h);
+        __asm__ volatile (
+            "cld; rep stosl"
+            : "+D"(p), "+c"(n)
+            : "a"(color)
+            : "memory"
+        );
+    } else {
+        for (int row = 0; row < h; row++, p += stride) {
+            color_t *rp = p;
+            uint32_t n = (uint32_t)w;
+            __asm__ volatile (
+                "cld; rep stosl"
+                : "+D"(rp), "+c"(n)
+                : "a"(color)
+                : "memory"
+            );
+        }
+    }
 }
 
 void fb_show(void)
@@ -136,6 +166,10 @@ void fb_blit(int x, int y, const struct image *img, bool use_src_alpha, color_t 
     int blit_w = img->width;
     int blit_h = img->height;
 
+    int tw = target->width;
+    int th = target->height;
+    int tp = target->pitch;
+
     if (dst_x < 0) {
         src_x = -dst_x;
         blit_w += dst_x;
@@ -146,23 +180,23 @@ void fb_blit(int x, int y, const struct image *img, bool use_src_alpha, color_t 
         blit_h += dst_y;
         dst_y = 0;
     }
-    if (dst_x + blit_w > FB_WIDTH)
-        blit_w = FB_WIDTH - dst_x;
-    if (dst_y + blit_h > FB_HEIGHT)
-        blit_h = FB_HEIGHT - dst_y;
+    if (dst_x + blit_w > tw)
+        blit_w = tw - dst_x;
+    if (dst_y + blit_h > th)
+        blit_h = th - dst_y;
 
     if (blit_w <= 0 || blit_h <= 0)
         return;
 
     bool use_tint = tint != FB_WHITE;
 
-    color_t       *restrict dst = &backbuffer[dst_y * FB_WIDTH + dst_x];
+    color_t       *restrict dst = &target->pixels[dst_y * tp + dst_x];
     const color_t *restrict src = &img->pixels[src_y * img->pitch + src_x];
 
-    if      ( use_src_alpha &&  use_tint) blit_tint_alpha(dst, src, blit_w, blit_h, FB_WIDTH, img->pitch, tint);
-    else if ( use_src_alpha && !use_tint) blit_alpha     (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch);
-    else if (!use_src_alpha &&  use_tint) blit_tint      (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch, tint);
-    else                                  blit_copy      (dst, src, blit_w, blit_h, FB_WIDTH, img->pitch);
+    if      ( use_src_alpha &&  use_tint) blit_tint_alpha(dst, src, blit_w, blit_h, tp, img->pitch, tint);
+    else if ( use_src_alpha && !use_tint) blit_alpha     (dst, src, blit_w, blit_h, tp, img->pitch);
+    else if (!use_src_alpha &&  use_tint) blit_tint      (dst, src, blit_w, blit_h, tp, img->pitch, tint);
+    else                                  blit_copy      (dst, src, blit_w, blit_h, tp, img->pitch);
 }
 
 void fb_set_font(const struct font *f)
@@ -173,15 +207,15 @@ void fb_set_font(const struct font *f)
 static inline void fb_putc(int x, int y, int src_x, int src_y, color_t fg, color_t bg)
 {
     int gx_start = x < 0 ? -x : 0;
-    int gx_end   = x + font.glyph_w > FB_WIDTH  ? FB_WIDTH  - x : font.glyph_w;
+    int gx_end   = x + font.glyph_w > target->width  ? target->width  - x : font.glyph_w;
     int gy_start = y < 0 ? -y : 0;
-    int gy_end   = y + font.glyph_h > FB_HEIGHT ? FB_HEIGHT - y : font.glyph_h;
+    int gy_end   = y + font.glyph_h > target->height ? target->height - y : font.glyph_h;
 
     if (gx_start >= gx_end || gy_start >= gy_end)
         return;
 
     for (int gy = gy_start; gy < gy_end; gy++) {
-        color_t *restrict row      = &backbuffer[( y + gy) * FB_WIDTH + x];
+        color_t *restrict row      = &target->pixels[(y + gy) * target->pitch + x];
         const color_t *restrict ar = &font.atlas.pixels[(src_y + gy) * font.atlas.width + src_x];
 
         for (int gx = gx_start; gx < gx_end; gx++) {
@@ -219,9 +253,9 @@ void fb_puts(int x, int y, const char *str, color_t fg, color_t bg)
 void fb_get_text_size(const char *str, int *w, int *h)
 {
     if (!str) {
-        if (w) 
+        if (w)
             *w = 0;
-        if (h) 
+        if (h)
             *h = 0;
         return;
     }

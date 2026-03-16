@@ -44,6 +44,7 @@ static inline struct image fb_subrect(struct image *im, int x, int y, int w, int
 
 struct image fb_decode_png(const void *data, size_t size);
 
+void fb_set_render_target(struct image *target);
 void fb_clear(color_t color);
 void fb_blit(int x, int y, const struct image *src, bool use_src_alpha, color_t tint);
 
