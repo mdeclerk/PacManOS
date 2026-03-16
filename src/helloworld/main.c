@@ -2,6 +2,7 @@
 #include "engineos/include/log.h"
 #include "engineos/include/ramfs.h"
 #include "engineos/include/screen.h"
+#include "stdlib/stdio.h"
 
 #define TEXT "Hello, World!"
 
@@ -32,9 +33,11 @@ static void start(void *arg)
 
 static void draw(uint32_t fps)
 {
-    (void)fps;
-
     fb_blit(0, 0, &background, false, FB_WHITE);
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "FPS: %u", fps);
+    fb_puts(4, 4, buf, FB_GREEN, FB_BLACK);
 
     int tw, th;
     fb_get_text_size(TEXT, &tw, &th);
