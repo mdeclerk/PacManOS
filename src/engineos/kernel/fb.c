@@ -142,6 +142,28 @@ void fb_set_font(const struct font *f)
     font = *f;
 }
 
+static inline void fb_putc(int x, int y, int src_x, int src_y, color_t fg, color_t bg)
+{
+    int gx_start = x < 0 ? -x : 0;
+    int gx_end   = x + font.glyph_w > FB_WIDTH  ? FB_WIDTH  - x : font.glyph_w;
+    int gy_start = y < 0 ? -y : 0;
+    int gy_end   = y + font.glyph_h > FB_HEIGHT ? FB_HEIGHT - y : font.glyph_h;
+
+    if (gx_start >= gx_end || gy_start >= gy_end)
+        return;
+
+    for (int gy = gy_start; gy < gy_end; gy++) {
+        color_t *restrict row      = &backbuffer[( y + gy) * FB_WIDTH + x];
+        const color_t *restrict ar = &font.atlas.pixels[(src_y + gy) * font.atlas.width + src_x];
+
+        for (int gx = gx_start; gx < gx_end; gx++) {
+            color_t px = ar[gx];
+            uint32_t alpha = (px >> 24) & 0xFF;
+            row[gx] = alpha_blend(fg, bg != FB_NONE ? bg : row[gx], alpha);
+        }
+    }
+}
+
 void fb_puts(int x, int y, const char *str, color_t fg, color_t bg)
 {
     if (!str || !font.atlas.pixels || font.glyph_w <= 0 || font.glyph_h <= 0 || font.atlas.width <= 0)
@@ -151,40 +173,17 @@ void fb_puts(int x, int y, const char *str, color_t fg, color_t bg)
     if (cols <= 0)
         return;
 
-    bool has_bg = (bg >> 24) != 0;
-
     while (*str) {
-        int c = (int)*str++;
-
-        c -= font.char_offset;
-        if (c < 0 || c > 255)
+        int c = (int)*str++ - font.char_offset;
+        if (c < 0 || c > 255) {
+            x += font.glyph_w;
             continue;
-
-        int col = c % cols;
-        int row = c / cols;
-        int src_x = col * font.glyph_w;
-        int src_y = row * font.glyph_h;
-
-        for (int gy = 0; gy < font.glyph_h; gy++) {
-            int dy = y + gy;
-            if (dy < 0 || dy >= FB_HEIGHT)
-                continue;
-
-            for (int gx = 0; gx < font.glyph_w; gx++) {
-                int dx = x + gx;
-                if (dx < 0 || dx >= FB_WIDTH)
-                    continue;
-
-                color_t px = font.atlas.pixels[(src_y + gy) * font.atlas.width + (src_x + gx)];
-                uint32_t alpha = (px >> 24) & 0xFF;
-
-                color_t *dest = &backbuffer[dy * FB_WIDTH + dx];
-                color_t base = has_bg ? bg : *dest;
-
-                *dest = alpha_blend(fg, base, alpha);
-            }
         }
 
+        int src_x = (c % cols) * font.glyph_w;
+        int src_y = (c / cols) * font.glyph_h;
+
+        fb_putc(x, y, src_x, src_y, fg, bg);
         x += font.glyph_w;
     }
 }
