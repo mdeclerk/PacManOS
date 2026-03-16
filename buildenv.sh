@@ -95,7 +95,7 @@ cmd_editor() {
 cmd_qemu_dbg() {
   require_cmd qemu-system-i386
   cmd_make_dbg
-  exec qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" \
+  exec qemu-system-i386 -cdrom "$ISO_DBG" -m "$QEMU_MEM" \
     -serial stdio -no-reboot
 }
 
@@ -113,7 +113,7 @@ cmd_qemu_gdb() {
   }
   trap cleanup EXIT INT TERM
 
-  qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" \
+  qemu-system-i386 -cdrom "$ISO_DBG" -m "$QEMU_MEM" \
     -serial file:out/debug/qemu-serial.log -no-reboot -s -S &
   qemu_pid=$!
 
@@ -128,14 +128,14 @@ cmd_qemu_gdb_stub() {
   require_cmd qemu-system-i386
   cmd_make_dbg
   echo ">>> QEMU GDB listening on :1234"
-  exec qemu-system-i386 -cdrom "$ISO_DBG" -cpu qemu32 -m "$QEMU_MEM" \
+  exec qemu-system-i386 -cdrom "$ISO_DBG" -m "$QEMU_MEM" \
     -serial stdio -no-reboot -s -S
 }
 
 cmd_qemu_rel() {
   require_cmd qemu-system-i386
   cmd_make_rel
-  exec qemu-system-i386 -cdrom "$ISO_REL" -cpu qemu32 -m "$QEMU_MEM" \
+  exec qemu-system-i386 -cdrom "$ISO_REL" -m "$QEMU_MEM" \
     -serial stdio -no-reboot
 }
 

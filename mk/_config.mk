@@ -1,10 +1,9 @@
 CROSS ?= i686-elf-
-BUILD ?= debug
+BUILD ?= release
 
 CC      := $(CROSS)gcc
 LD      := $(CROSS)ld
 AR      := $(CROSS)ar
-OBJCOPY := $(CROSS)objcopy
 PYTHON  := python3
 
 SRC_DIR       := src
@@ -16,8 +15,8 @@ BUILD_DIR      := $(OUT_DIR)/$(BUILD)
 GAMES := pacman helloworld
 
 WFLAGS  := -Wall -Wextra -Werror -Wpedantic
-CFLAGS  := -m32 -std=gnu23 -ffreestanding $(WFLAGS) -I$(SRC_DIR) -MMD -MP
-LDFLAGS := -m elf_i386
+CFLAGS  := -std=gnu23 -ffreestanding $(WFLAGS) -I$(SRC_DIR) -MMD -MP
+LDFLAGS := 
 
 ifeq ($(BUILD),release)
     CFLAGS += -O2 -DNDEBUG

@@ -43,7 +43,6 @@ tmp_log=$(mktemp)
 
 qemu-system-i386 \
   -cdrom "$ISO_PATH" \
-  -cpu qemu32 \
   -m "$QEMU_MEM" \
   -display none \
   -serial stdio \
