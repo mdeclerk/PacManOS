@@ -12,17 +12,14 @@ static struct font font;
 
 void fb_init(void)
 {
-    if (!mb2_info.fb.addr)
-        PANIC("frambuffer is nullptr");
-
     if (mb2_info.fb.width != FB_WIDTH ||
         mb2_info.fb.height != FB_HEIGHT ||
         mb2_info.fb.pitch != FB_PITCH)
-        PANIC("image format invalid");
+        PANIC("framebuffer format invalid");
 
     frontbuffer = (color_t *)mb2_info.fb.addr;
     if (!frontbuffer)
-        PANIC("image not initialized");
+        PANIC("framebuffer is null");
 
     fb_clear(FB_BLACK);
     fb_show();
