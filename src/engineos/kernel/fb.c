@@ -30,10 +30,14 @@ void fb_init(void)
 void fb_clear(color_t color)
 {
     color_t *p = backbuffer;
-    uint32_t count = FB_WIDTH * FB_HEIGHT;
+    uint32_t n = FB_WIDTH * FB_HEIGHT;
 
-    while (count--)
-        *p++ = color;
+    __asm__ volatile (
+        "cld; rep stosl"
+        : "+D"(p), "+c"(n)
+        : "a"(color)
+        : "memory"
+    );
 }
 
 void fb_show(void)
