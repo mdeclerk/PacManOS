@@ -41,6 +41,35 @@ memset:
 .size memset, .-memset
 
 /* --------------------------------------------------------------------------
+ * void *memset32(void *dst, uint32_t value, size_t count)
+ *
+ * Fill 'count' 32-bit dwords at 'dst' with 'value'.
+ *
+ * Stack after push %edi (1 callee-save):
+ *   8(%esp) = dst
+ *  12(%esp) = value
+ *  16(%esp) = count  (number of 32-bit dwords)
+ * Returns dst in %eax.
+ * -------------------------------------------------------------------------- */
+.global memset32
+.type memset32, @function
+memset32:
+    pushl   %edi
+
+    movl    8(%esp), %edi       /* dst */
+    movl    12(%esp), %eax      /* value */
+    movl    16(%esp), %ecx      /* count */
+
+    cld
+    rep stosl
+
+    movl    8(%esp), %eax       /* return dst */
+
+    popl    %edi
+    ret
+.size memset32, .-memset32
+
+/* --------------------------------------------------------------------------
  * void *memcpy(void *dst, const void *src, size_t size)
  *
  * Stack after push %esi, %edi (2 callee-saves):

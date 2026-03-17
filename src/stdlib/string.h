@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stddef.h"
+#include "stdint.h"
 
 #define memset  __builtin_memset
 #define memcpy  __builtin_memcpy
@@ -10,3 +11,5 @@
 #define strncpy __builtin_strncpy
 
 bool strneq(const char *a, const char *b, size_t n);
+
+void *memset32(void *dst, uint32_t value, size_t count);

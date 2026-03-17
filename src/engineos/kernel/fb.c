@@ -49,25 +49,12 @@ void fb_clear(color_t color)
     int stride = target->pitch;
 
     if (stride == w) {
-        uint32_t n = (uint32_t)(w * h);
-        __asm__ volatile (
-            "cld; rep stosl"
-            : "+D"(p), "+c"(n)
-            : "a"(color)
-            : "memory"
-        );
-    } else {
-        for (int row = 0; row < h; row++, p += stride) {
-            color_t *rp = p;
-            uint32_t n = (uint32_t)w;
-            __asm__ volatile (
-                "cld; rep stosl"
-                : "+D"(rp), "+c"(n)
-                : "a"(color)
-                : "memory"
-            );
-        }
+        memset32(p, color, w * h);
+        return;
     }
+
+    for (int row = 0; row < h; row++, p += stride)
+        memset32(p, color, w);
 }
 
 void fb_show(void)
