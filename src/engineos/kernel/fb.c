@@ -222,18 +222,15 @@ void fb_puts(int x, int y, const char *str, color_t fg, color_t bg)
     if (cols <= 0)
         return;
 
-    while (*str) {
-        int c = (int)*str++ - font.char_offset;
-        if (c < 0 || c > 255) {
-            x += font.glyph_w;
+    for (; *str; str++, x += font.glyph_w) {
+        int c = (int)*str - font.char_offset;
+        if (c < 0 || c > 255)
             continue;
-        }
 
         int src_x = (c % cols) * font.glyph_w;
         int src_y = (c / cols) * font.glyph_h;
 
         fb_putc(x, y, src_x, src_y, fg, bg);
-        x += font.glyph_w;
     }
 }
 
