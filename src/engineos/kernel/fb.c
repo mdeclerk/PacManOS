@@ -3,8 +3,6 @@
 #include "log.h"
 #include "stdlib/string.h"
 
-#define FB_SIZE (FB_WIDTH * FB_HEIGHT * sizeof(color_t))
-
 static color_t *frontbuffer;
 static color_t backbuffer[FB_WIDTH * FB_HEIGHT];
 
@@ -59,7 +57,7 @@ void fb_clear(color_t color)
 
 void fb_show(void)
 {
-    memcpy(frontbuffer, backbuffer, FB_SIZE);
+    memcpy32(frontbuffer, backbuffer, FB_WIDTH * FB_HEIGHT);
 }
 
 static inline color_t alpha_blend(color_t src, color_t dst, uint8_t alpha)
@@ -113,7 +111,7 @@ static inline void blit_copy(color_t *restrict dst, const color_t *restrict src,
     int w, int h, int dst_stride, int src_stride)
 {
     for (int row = 0; row < h; row++, dst += dst_stride, src += src_stride)
-        memcpy(dst, src, (size_t)w * sizeof(color_t));
+        memcpy32(dst, src, (size_t)w);
 }
 
 static inline void blit_tint(color_t *restrict dst, const color_t *restrict src,

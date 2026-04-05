@@ -108,6 +108,37 @@ memcpy:
 .size memcpy, .-memcpy
 
 /* --------------------------------------------------------------------------
+ * void *memcpy32(void *dst, const void *src, size_t count)
+ *
+ * Copy 'count' 32-bit dwords from 'src' to 'dst'.
+ *
+ * Stack after push %esi, %edi (2 callee-saves):
+ *  12(%esp) = dst
+ *  16(%esp) = src
+ *  20(%esp) = count  (number of 32-bit dwords)
+ * Returns dst in %eax.
+ * -------------------------------------------------------------------------- */
+.global memcpy32
+.type memcpy32, @function
+memcpy32:
+    pushl   %esi
+    pushl   %edi
+
+    movl    12(%esp), %edi      /* dst */
+    movl    16(%esp), %esi      /* src */
+    movl    20(%esp), %ecx      /* count */
+
+    cld
+    rep movsl
+
+    movl    12(%esp), %eax      /* return dst */
+
+    popl    %edi
+    popl    %esi
+    ret
+.size memcpy32, .-memcpy32
+
+/* --------------------------------------------------------------------------
  * int memcmp(const void *s1, const void *s2, size_t n)
  *
  * Stack after push %esi, %edi (2 callee-saves):
