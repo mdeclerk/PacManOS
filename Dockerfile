@@ -51,12 +51,14 @@ RUN cd /tmp && \
     make install-gcc install-target-libgcc && \
     rm -rf /tmp/*
 
-# Extract i386-pc GRUB modules from amd64 .deb
-RUN cd /tmp && \
-    wget -q http://deb.debian.org/debian/pool/main/g/grub2/grub-pc-bin_2.12-9_amd64.deb && \
+# Extract i386-pc GRUB modules from grub-pc-bin amd64 package
+RUN dpkg --add-architecture amd64 && \
+    apt-get update && \
+    cd /tmp && \
+    apt-get download grub-pc-bin:amd64 && \
     ar x grub-pc-bin_*.deb data.tar.xz && \
     tar -xf data.tar.xz -C / ./usr/lib/grub/i386-pc && \
-    rm -rf /tmp/*
+    rm -rf /tmp/* /var/lib/apt/lists/*
 
 # --- Stage 2: Slim build environment with cross-compiler and GRUB tools
 FROM debian:stable-slim AS buildenv
