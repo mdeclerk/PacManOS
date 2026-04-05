@@ -1,4 +1,5 @@
 [![CI](https://github.com/mdeclerk/PacManOS/actions/workflows/CI.yml/badge.svg)](https://github.com/mdeclerk/PacManOS/actions/workflows/CI.yml)
+[![buildenv](https://github.com/mdeclerk/PacManOS/actions/workflows/buildenv.yml/badge.svg)](https://github.com/mdeclerk/PacManOS/actions/workflows/buildenv.yml)
 
 # PacManOS
 
