@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-smoke:
@@ -58,3 +58,26 @@ jobs:
 
       - name: Run smoke tests
         run: IMAGE=pacmanos-buildenv:ci ./buildenv.sh smoke 10
+
+      - name: Stage release assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p release-staging
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          cp out/debug/pacmanos.iso   release-staging/pacmanos-dbg-${SHORT_SHA}.iso
+          cp out/release/pacmanos.iso release-staging/pacmanos-rel-${SHORT_SHA}.iso
+
+      - name: Publish rolling "latest" release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: Latest build
+          body: |
+            Rolling build from `${{ github.sha }}`.
+            Built on ${{ github.event.head_commit.timestamp }}.
+          files: |
+            release-staging/pacmanos-dbg-*.iso
+            release-staging/pacmanos-rel-*.iso
+          make_latest: 'true'
+          prerelease: false
