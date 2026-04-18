@@ -7,6 +7,14 @@ A bare-metal 32-bit x86 kernel that boots straight into a playable Pac-Man clone
 
 ![Gameplay](docs/gameplay.gif)
 
+## TL;DR
+
+Download latest release ISO `pacmanos-rel.iso` and run it with `qemu-system-i386`:
+
+```bash
+qemu-system-i386 -cdrom pacmanos-rel.iso
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -72,10 +80,6 @@ PacManOS/
 └─ ...
 ```
 
-### Modularity
-
-PacManOS separates the shared `engineos` layer from individual game modules. `engineos` provides the core OS and engine functionality, while games live in their own modules and plug into that shared layer. This makes the architecture easy to extend, with [`src/helloworld/`](/Users/Q293415/Documents/Repos/personal/PacManOS/src/helloworld) serving as a minimal example of how to add another game module on top of [`src/engineos/`](/Users/Q293415/Documents/Repos/personal/PacManOS/src/engineos).
-
 ### Build Script `buildenv.sh` 
 
 ```text
@@ -116,6 +120,10 @@ Components
 Final Assembly
   [engineos.elf] + [<game>.elf] + [<game>.ramfs] -> [pacmanos.iso]
 ```
+
+### Modularity
+
+PacManOS separates the shared `engineos` layer from individual game modules. `engineos` provides the core OS and engine functionality, while games live in their own modules and plug into that shared layer. This makes the architecture easy to extend, with [`src/helloworld/`](/Users/Q293415/Documents/Repos/personal/PacManOS/src/helloworld) serving as a minimal example of how to add another game module on top of [`src/engineos/`](/Users/Q293415/Documents/Repos/personal/PacManOS/src/engineos).
 
 ### Smoke Testing
 

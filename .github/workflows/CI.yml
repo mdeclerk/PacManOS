@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-smoke:
+  build-smoke-release:
     runs-on: ubuntu-24.04
 
     steps:
@@ -63,9 +63,8 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p release-staging
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          cp out/debug/pacmanos.iso   release-staging/pacmanos-dbg-${SHORT_SHA}.iso
-          cp out/release/pacmanos.iso release-staging/pacmanos-rel-${SHORT_SHA}.iso
+          cp out/debug/pacmanos.iso   release-staging/pacmanos-dbg.iso
+          cp out/release/pacmanos.iso release-staging/pacmanos-rel.iso
 
       - name: Publish rolling "latest" release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -77,7 +76,7 @@ jobs:
             Rolling build from `${{ github.sha }}`.
             Built on ${{ github.event.head_commit.timestamp }}.
           files: |
-            release-staging/pacmanos-dbg-*.iso
-            release-staging/pacmanos-rel-*.iso
+            release-staging/pacmanos-dbg.iso
+            release-staging/pacmanos-rel.iso
           make_latest: 'true'
           prerelease: false
