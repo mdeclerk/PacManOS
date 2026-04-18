@@ -9,7 +9,7 @@ A bare-metal 32-bit x86 kernel that boots straight into a playable Pac-Man clone
 
 ## TL;DR
 
-Download latest release ISO `pacmanos-rel.iso` and run it with `qemu-system-i386`:
+Download latest release ISO [pacmanos-rel.iso](https://github.com/mdeclerk/PacManOS/releases/latest/download/pacmanos-rel.iso) and run it with `qemu-system-i386`:
 
 ```bash
 qemu-system-i386 -cdrom pacmanos-rel.iso
